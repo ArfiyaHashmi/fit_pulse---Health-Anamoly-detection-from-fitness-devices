@@ -1,0 +1,275 @@
+[
+  {
+    "timestamp": "2024-01-15 08:00:00",
+    "heart_rate": 72,
+    "step_count": 100,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 08:30:00",
+    "heart_rate": 75,
+    "step_count": 150,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 09:00:00",
+    "heart_rate": 80,
+    "step_count": 250,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 09:30:00",
+    "heart_rate": 82,
+    "step_count": 300,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 10:00:00",
+    "heart_rate": 78,
+    "step_count": 400,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 10:30:00",
+    "heart_rate": 76,
+    "step_count": 350,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 11:00:00",
+    "heart_rate": 74,
+    "step_count": 450,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 11:30:00",
+    "heart_rate": 71,
+    "step_count": 200,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 12:00:00",
+    "heart_rate": 70,
+    "step_count": 50,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-15 22:00:00",
+    "heart_rate": 55,
+    "step_count": 0,
+    "sleep_stage": "light_sleep",
+    "duration_minutes": 45
+  },
+  {
+    "timestamp": "2024-01-15 22:45:00",
+    "heart_rate": 52,
+    "step_count": 0,
+    "sleep_stage": "deep_sleep",
+    "duration_minutes": 120
+  },
+  {
+    "timestamp": "2024-01-16 00:45:00",
+    "heart_rate": 50,
+    "step_count": 0,
+    "sleep_stage": "rem_sleep",
+    "duration_minutes": 90
+  },
+  {
+    "timestamp": "2024-01-16 02:15:00",
+    "heart_rate": 52,
+    "step_count": 0,
+    "sleep_stage": "light_sleep",
+    "duration_minutes": 60
+  },
+  {
+    "timestamp": "2024-01-16 03:15:00",
+    "heart_rate": 54,
+    "step_count": 0,
+    "sleep_stage": "awake",
+    "duration_minutes": 5
+  },
+  {
+    "timestamp": "2024-01-16 08:00:00",
+    "heart_rate": 68,
+    "step_count": 150,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 08:30:00",
+    "heart_rate": 70,
+    "step_count": 200,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 09:00:00",
+    "heart_rate": 85,
+    "step_count": 350,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 09:30:00",
+    "heart_rate": 88,
+    "step_count": 400,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 10:00:00",
+    "heart_rate": 92,
+    "step_count": 500,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 10:30:00",
+    "heart_rate": 95,
+    "step_count": 450,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 11:00:00",
+    "heart_rate": 98,
+    "step_count": 600,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 11:30:00",
+    "heart_rate": 102,
+    "step_count": 550,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 12:00:00",
+    "heart_rate": 100,
+    "step_count": 700,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 12:30:00",
+    "heart_rate": 96,
+    "step_count": 800,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 13:00:00",
+    "heart_rate": 93,
+    "step_count": 900,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 13:30:00",
+    "heart_rate": 90,
+    "step_count": 850,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 14:00:00",
+    "heart_rate": 87,
+    "step_count": 750,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 14:30:00",
+    "heart_rate": 85,
+    "step_count": 600,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 15:00:00",
+    "heart_rate": 82,
+    "step_count": 500,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-16 22:00:00",
+    "heart_rate": 58,
+    "step_count": 0,
+    "sleep_stage": "light_sleep",
+    "duration_minutes": 30
+  },
+  {
+    "timestamp": "2024-01-16 22:30:00",
+    "heart_rate": 55,
+    "step_count": 0,
+    "sleep_stage": "deep_sleep",
+    "duration_minutes": 150
+  },
+  {
+    "timestamp": "2024-01-17 00:00:00",
+    "heart_rate": 51,
+    "step_count": 0,
+    "sleep_stage": "rem_sleep",
+    "duration_minutes": 100
+  },
+  {
+    "timestamp": "2024-01-17 01:40:00",
+    "heart_rate": 53,
+    "step_count": 0,
+    "sleep_stage": "light_sleep",
+    "duration_minutes": 50
+  },
+  {
+    "timestamp": "2024-01-17 02:30:00",
+    "heart_rate": 56,
+    "step_count": 0,
+    "sleep_stage": "awake",
+    "duration_minutes": 10
+  },
+  {
+    "timestamp": "2024-01-17 08:00:00",
+    "heart_rate": 70,
+    "step_count": 120,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-17 08:30:00",
+    "heart_rate": 72,
+    "step_count": 180,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-17 09:00:00",
+    "heart_rate": 75,
+    "step_count": 250,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-17 09:30:00",
+    "heart_rate": 78,
+    "step_count": 300,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  },
+  {
+    "timestamp": "2024-01-17 10:00:00",
+    "heart_rate": 81,
+    "step_count": 350,
+    "sleep_stage": "awake",
+    "duration_minutes": 0
+  }
+]
