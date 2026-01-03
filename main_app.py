@@ -10,6 +10,11 @@ from sklearn.ensemble import IsolationForest
 import json
 import io
 
+GREEN = "#10B981"
+RED = "#EF4444"
+BLUE = "#3B82F6"
+YELLOW = "#F59E0B"
+
 # Page Configuration
 st.set_page_config(
     page_title="FitPulse - Health Anomaly Detection",
@@ -17,684 +22,197 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
+#-------------------------------------
 # Custom CSS for perfect styling with animations
+#------------------------------------------------
 st.markdown("""
-    <style>
-    /* Main background with animation */
-    .main {
-        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-        background-attachment: fixed;
-        animation: gradientShift 15s ease infinite;
-        background-size: 200% 200%;
-    }
-    
-    @keyframes gradientShift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    
-    .stApp {
-        background: transparent;
-    }
-    
-    /* Block container styling with fade in */
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        animation: fadeInUp 0.8s ease-out;
-    }
-    
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    /* All text elements */
-    .main p, .main span, .main li, .main div {
-        color: #ffffff !important;
-    }
-    
-    /* Metric styling with animations */
-    div[data-testid="stMetricValue"] {
-        font-size: 32px;
-        font-weight: 700;
-        color: #ffffff !important;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        animation: scaleIn 0.6s ease-out;
-    }
-    div[data-testid="stMetricLabel"] {
-        color: #ffffff !important;
-        font-weight: 600;
-        font-size: 16px;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        animation: fadeIn 0.8s ease-out;
-    }
-    div[data-testid="stMetricDelta"] {
-        color: #ffffff !important;
-        font-weight: 600;
-        animation: slideInRight 0.7s ease-out;
-    }
-    
-    @keyframes scaleIn {
-        from {
-            transform: scale(0.8);
-            opacity: 0;
-        }
-        to {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    @keyframes slideInRight {
-        from {
-            transform: translateX(-20px);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    /* Headers with perfect visibility and animations */
-    h1 {
-        color: #ffffff !important;
-        text-shadow: 3px 3px 6px rgba(0,0,0,0.7);
-        font-weight: 800;
-        margin-bottom: 1.5rem;
-        animation: slideInDown 0.8s ease-out;
-    }
-    h2 {
-        color: #ffffff !important;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
-        font-weight: 700;
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-        animation: fadeInLeft 0.7s ease-out;
-    }
-    h3 {
-        color: #ffffff !important;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        font-weight: 700;
-        margin-bottom: 1rem;
-        font-size: 1.5rem;
-        animation: fadeInLeft 0.7s ease-out;
-    }
-    h4 {
-        color: #2c3e50 !important;
-        font-weight: 700;
-        font-size: 1.2rem;
-    }
-    
-    @keyframes slideInDown {
-        from {
-            transform: translateY(-30px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes fadeInLeft {
-        from {
-            transform: translateX(-30px);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    /* Metric cards with perfect contrast and animations */
-    .metric-card {
-        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.3);
-        margin: 15px 0;
-        border: 3px solid rgba(255,255,255,0.4);
-        animation: cardSlideIn 0.8s ease-out;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .metric-card:hover {
-        transform: translateY(-8px) scale(1.02);
-        box-shadow: 0 15px 30px rgba(0,0,0,0.4);
-        border-color: rgba(52, 152, 219, 0.6);
-    }
-    .metric-card h3 {
-        color: #1a1a2e !important;
-        text-shadow: none;
-        margin-bottom: 15px;
-        font-size: 1.4rem;
-    }
-    .metric-card h4 {
-        color: #2c3e50 !important;
-        text-shadow: none;
-        margin-bottom: 10px;
-    }
-    .metric-card p {
-        color: #2d3436 !important;
-        font-weight: 600;
-        margin: 10px 0;
-        font-size: 1.05rem;
-        text-shadow: none;
-        transition: transform 0.3s ease;
-    }
-    .metric-card:hover p {
-        transform: translateX(5px);
-    }
-    .metric-card strong {
-        color: #0984e3 !important;
-        font-size: 1.3em;
-        text-shadow: none;
-    }
-    
-    @keyframes cardSlideIn {
-        from {
-            opacity: 0;
-            transform: translateY(40px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    /* Anomaly cards with strong contrast and animations */
-    .anomaly-high {
-        background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
-        color: #ffffff !important;
-        padding: 20px;
-        border-radius: 12px;
-        margin: 12px 0;
-        box-shadow: 0 8px 16px rgba(192, 57, 43, 0.5);
-        border: 3px solid rgba(255,255,255,0.3);
-        animation: pulseGlow 2s ease-in-out infinite;
-        transition: all 0.3s ease;
-    }
-    .anomaly-high:hover {
-        transform: translateX(10px);
-        box-shadow: 0 12px 24px rgba(192, 57, 43, 0.6);
-    }
-    .anomaly-high strong, .anomaly-high p, .anomaly-high br {
-        color: #ffffff !important;
-        font-size: 1.1em;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-    }
-    
-    .anomaly-medium {
-        background: linear-gradient(135deg, #d68910 0%, #f39c12 100%);
-        color: #1a1a2e !important;
-        padding: 20px;
-        border-radius: 12px;
-        margin: 12px 0;
-        box-shadow: 0 8px 16px rgba(243, 156, 18, 0.5);
-        border: 3px solid rgba(255,255,255,0.3);
-        animation: slideInFromLeft 0.6s ease-out;
-        transition: all 0.3s ease;
-    }
-    .anomaly-medium:hover {
-        transform: translateX(10px);
-        box-shadow: 0 12px 24px rgba(243, 156, 18, 0.6);
-    }
-    .anomaly-medium strong, .anomaly-medium p {
-        color: #1a1a2e !important;
-        font-size: 1.1em;
-        font-weight: 700;
-        text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
-    }
-    
-    .anomaly-low {
-        background: linear-gradient(135deg, #16a085 0%, #1abc9c 100%);
-        color: #ffffff !important;
-        padding: 20px;
-        border-radius: 12px;
-        margin: 12px 0;
-        box-shadow: 0 8px 16px rgba(26, 188, 156, 0.5);
-        border: 3px solid rgba(255,255,255,0.3);
-        animation: slideInFromLeft 0.6s ease-out;
-        transition: all 0.3s ease;
-    }
-    .anomaly-low:hover {
-        transform: translateX(10px);
-        box-shadow: 0 12px 24px rgba(26, 188, 156, 0.6);
-    }
-    .anomaly-low strong, .anomaly-low p {
-        color: #ffffff !important;
-        font-size: 1.1em;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-    }
-    
-    @keyframes pulseGlow {
-        0%, 100% {
-            box-shadow: 0 8px 16px rgba(192, 57, 43, 0.5);
-        }
-        50% {
-            box-shadow: 0 8px 25px rgba(192, 57, 43, 0.8);
-        }
-    }
-    
-    @keyframes slideInFromLeft {
-        from {
-            opacity: 0;
-            transform: translateX(-50px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-    
-    /* Info and warning boxes with animations */
-    .stAlert {
-        background-color: rgba(255, 255, 255, 0.95) !important;
-        border: 3px solid rgba(52, 152, 219, 0.5);
-        animation: bounceIn 0.8s ease-out;
-        transition: all 0.3s ease;
-    }
-    .stAlert:hover {
-        transform: scale(1.02);
-        box-shadow: 0 8px 16px rgba(52, 152, 219, 0.3);
-    }
-    .stAlert p, .stAlert div {
-        color: #2c3e50 !important;
-        font-weight: 600;
-        text-shadow: none;
-    }
-    
-    @keyframes bounceIn {
-        0% {
-            opacity: 0;
-            transform: scale(0.3);
-        }
-        50% {
-            opacity: 1;
-            transform: scale(1.05);
-        }
-        70% { transform: scale(0.9); }
-        100% { transform: scale(1); }
-    }
-    
-    /* Dataframe styling with animations */
-    .dataframe {
-        background-color: #ffffff !important;
-        animation: fadeIn 0.8s ease-out;
-        transition: transform 0.3s ease;
-    }
-    .dataframe:hover {
-        transform: scale(1.01);
-    }
-    .dataframe th {
-        background-color: #34495e !important;
-        color: white !important;
-        font-weight: 700;
-        transition: background-color 0.3s ease;
-    }
-    .dataframe th:hover {
-        background-color: #2c3e50 !important;
-    }
-    .dataframe td {
-        color: #2c3e50 !important;
-        transition: background-color 0.3s ease;
-    }
-    .dataframe tr:hover td {
-        background-color: rgba(52, 152, 219, 0.1) !important;
-    }
-    
-    /* Sidebar improvements with animations */
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
-        animation: slideInLeft 0.6s ease-out;
-    }
-    section[data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
-    section[data-testid="stSidebar"] h1,
-    section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3,
-    section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] label {
-        color: #ffffff !important;
-        text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-        transition: transform 0.3s ease;
-    }
-    section[data-testid="stSidebar"] h1:hover,
-    section[data-testid="stSidebar"] h2:hover,
-    section[data-testid="stSidebar"] h3:hover {
-        transform: translateX(5px);
-    }
-    
-    @keyframes slideInLeft {
-        from {
-            transform: translateX(-100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    /* Radio buttons in sidebar with animations */
-    .stRadio > label {
-        color: #ffffff !important;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-    .stRadio > div {
-        transition: transform 0.3s ease;
-    }
-    .stRadio > div:hover {
-        transform: translateX(8px);
-    }
-    .stRadio [role="radiogroup"] label {
-        transition: all 0.3s ease;
-        padding: 8px 12px;
-        border-radius: 8px;
-    }
-    .stRadio [role="radiogroup"] label:hover {
-        background: rgba(52, 152, 219, 0.2);
-        transform: scale(1.05);
-    }
-    
-    /* Buttons with animations */
-    .stButton > button {
-        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-        color: white !important;
-        font-weight: 700;
-        border: none;
-        border-radius: 8px;
-        padding: 12px 24px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-    .stButton > button:before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
-    }
-    .stButton > button:hover:before {
-        width: 300px;
-        height: 300px;
-    }
-    .stButton > button:hover {
-        background: linear-gradient(135deg, #2980b9 0%, #21618c 100%);
-        box-shadow: 0 8px 16px rgba(0,0,0,0.4);
-        transform: translateY(-3px) scale(1.05);
-    }
-    .stButton > button:active {
-        transform: translateY(-1px) scale(1.02);
-    }
-    
-    /* Download buttons with animations */
-    .stDownloadButton > button {
-        background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-        color: white !important;
-        font-weight: 700;
-        border: none;
-        border-radius: 8px;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-    .stDownloadButton > button:before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.3);
-        transform: translate(-50%, -50%);
-        transition: width 0.6s, height 0.6s;
-    }
-    .stDownloadButton > button:hover:before {
-        width: 300px;
-        height: 300px;
-    }
-    .stDownloadButton > button:hover {
-        transform: translateY(-3px) scale(1.05);
-        box-shadow: 0 8px 16px rgba(39, 174, 96, 0.4);
-    }
-    
-    /* File uploader with animations */
-    .stFileUploader label {
-        color: #ffffff !important;
-        font-weight: 600;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        transition: transform 0.3s ease;
-    }
-    .stFileUploader:hover label {
-        transform: translateX(5px);
-    }
-    .stFileUploader > div {
-        transition: all 0.3s ease;
-        border-radius: 10px;
-    }
-    .stFileUploader > div:hover {
-        transform: scale(1.02);
-        box-shadow: 0 8px 16px rgba(52, 152, 219, 0.3);
-    }
-    
-    /* Expander styling with animations */
-    .streamlit-expanderHeader {
-        background-color: rgba(52, 152, 219, 0.2);
-        color: #ffffff !important;
-        font-weight: 700;
-        border-radius: 8px;
-        border: 2px solid rgba(255,255,255,0.2);
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: pointer;
-    }
-    .streamlit-expanderHeader:hover {
-        background-color: rgba(52, 152, 219, 0.4);
-        transform: translateX(10px);
-        border-color: rgba(255,255,255,0.4);
-    }
-    .streamlit-expanderHeader p {
-        color: #ffffff !important;
-        font-weight: 700;
-    }
-    .streamlit-expanderContent {
-        background-color: rgba(255, 255, 255, 0.95);
-        border-radius: 8px;
-        animation: expandIn 0.5s ease-out;
-    }
-    
-    @keyframes expandIn {
-        from {
-            opacity: 0;
-            max-height: 0;
-        }
-        to {
-            opacity: 1;
-            max-height: 1000px;
-        }
-    }
-    
-    /* Markdown text in expanders and main */
-    .streamlit-expanderContent p {
-        color: #2c3e50 !important;
-        text-shadow: none;
-    }
-    
-    /* Tabs with animations */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: rgba(255,255,255,0.1);
-        border-radius: 10px;
-        padding: 5px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: #ffffff !important;
-        font-weight: 600;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border-radius: 8px;
-        padding: 10px 20px;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: rgba(52, 152, 219, 0.3);
-        transform: translateY(-3px);
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: rgba(52, 152, 219, 0.5) !important;
-    }
-    
-    /* Make sure all paragraph text is visible with animations */
-    p {
-        color: #ffffff !important;
-        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-        line-height: 1.6;
-        transition: transform 0.3s ease;
-    }
-    
-    /* Horizontal rule with animation */
-    hr {
-        border-color: rgba(255,255,255,0.3);
-        margin: 2rem 0;
-        animation: growWidth 1s ease-out;
-    }
-    
-    @keyframes growWidth {
-        from {
-            width: 0;
-            opacity: 0;
-        }
-        to {
-            width: 100%;
-            opacity: 1;
-        }
-    }
-    
-    /* Smooth scrolling */
-    html {
-        scroll-behavior: smooth;
-    }
-    
-    /* Column animations */
-    [data-testid="column"] {
-        animation: fadeInUp 0.8s ease-out;
-    }
-    
-    /* Image animations */
-    img {
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        border-radius: 12px;
-    }
-    img:hover {
-        transform: scale(1.1) rotate(5deg);
-        box-shadow: 0 10px 30px rgba(52, 152, 219, 0.5);
-    }
-    
-    /* Spinner overlay */
-    .stSpinner > div {
-        border-color: rgba(52, 152, 219, 0.3);
-        border-top-color: #3498db;
-        animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    /* Success message animation */
-    .stSuccess {
-        animation: slideInRight 0.6s ease-out;
-    }
-    
-    /* Error message animation */
-    .stError {
-        animation: shake 0.5s ease-in-out;
-    }
-    
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-10px); }
-        75% { transform: translateX(10px); }
-    }
-    
-    /* Warning message animation */
-    .stWarning {
-        animation: pulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.8; }
-    }
-    
-    /* Plotly chart container animations */
-    .js-plotly-plot {
-        animation: zoomIn 0.8s ease-out;
-    }
-    
-    @keyframes zoomIn {
-        from {
-            opacity: 0;
-            transform: scale(0.9);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-    
-    /* Selection and focus states */
-    *:focus {
-        outline: 2px solid rgba(52, 152, 219, 0.6);
-        outline-offset: 2px;
-        transition: outline 0.3s ease;
-    }
-    
-    /* Smooth transitions for all interactive elements */
-    button, a, input, select, textarea {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    /* Loading state shimmer effect */
-    @keyframes shimmer {
-        0% {
-            background-position: -1000px 0;
-        }
-        100% {
-            background-position: 1000px 0;
-        }
-    }
-    
-    .loading {
-        animation: shimmer 2s infinite;
-        background: linear-gradient(to right, #ecf0f1 0%, #d5dbdb 20%, #ecf0f1 40%, #ecf0f1 100%);
-        background-size: 1000px 100%;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+<style>
+
+/* ===============================
+   GLOBAL THEME
+================================ */
+html, body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    background-color: #F9FAFB;
+}
+
+.stApp {
+    background-color: #F9FAFB;
+    color: #1F2937;
+}
+
+/* ===============================
+   PAGE LAYOUT
+================================ */
+.block-container {
+    max-width: 1400px;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* ===============================
+   HEADINGS
+================================ */
+h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1F2937;
+}
+h2 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #374151;
+}
+h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #4B5563;
+}
+
+/* ===============================
+   SIDEBAR
+================================ */
+section[data-testid="stSidebar"] {
+    background-color: #FFFFFF;
+    border-right: 1px solid #E5E7EB;
+    padding-top: 1rem;
+}
+
+section[data-testid="stSidebar"] h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+section[data-testid="stSidebar"] label {
+    font-weight: 500;
+    color: #374151;
+}
+
+/* ===============================
+   METRIC CARDS
+================================ */
+[data-testid="stMetric"] {
+    background-color: #FFFFFF;
+    border-radius: 14px;
+    padding: 1.3rem;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.04);
+}
+
+[data-testid="stMetricLabel"] {
+    font-size: 0.85rem;
+    color: #6B7280;
+}
+
+[data-testid="stMetricValue"] {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #5DA9E9;
+}
+
+/* ===============================
+   STATUS CARDS
+================================ */
+.status-normal {
+    background: #ECFDF5;
+    border-left: 6px solid #7BC6A4;
+    padding: 1rem;
+    border-radius: 12px;
+}
+.status-warning {
+    background: #FFFBEB;
+    border-left: 6px solid #F4D06F;
+    padding: 1rem;
+    border-radius: 12px;
+}
+.status-critical {
+    background: #FEF2F2;
+    border-left: 6px solid #F28B82;
+    padding: 1rem;
+    border-radius: 12px;
+}
+
+/* ===============================
+   BUTTONS
+================================ */
+.stButton button {
+    background-color: #5DA9E9;
+    color: white;
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 0.55rem 1.4rem;
+    border: none;
+}
+.stButton button:hover {
+    background-color: #4A98D9;
+}
+
+/* ===============================
+   DATAFRAME & PLOTS
+================================ */
+[data-testid="stDataFrame"],
+.js-plotly-plot {
+    background-color: #FFFFFF;
+    border-radius: 14px;
+    border: 1px solid #E5E7EB;
+}
+
+/* ===============================
+   TABS
+================================ */
+.stTabs [aria-selected="true"] {
+    background-color: #E8F2FC;
+    border-radius: 8px;
+}
+
+/* ===============================
+   SCROLLBAR
+================================ */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-thumb {
+    background-color: #CBD5E1;
+    border-radius: 10px;
+}
+
+.anomaly-high {
+    background: #FDECEA;
+    border-left: 6px solid #EF4444;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+}
+
+.anomaly-medium {
+    background: #FFF4E5;
+    border-left: 6px solid #F59E0B;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+}
+
+.anomaly-low {
+    background: #ECFDF5;
+    border-left: 6px solid #10B981;
+    padding: 1rem;
+    border-radius: 12px;
+    margin-bottom: 1rem;
+}
+
+.metric-card {
+    background:#ffffff;
+    border-radius:16px;
+    padding:1.4rem;
+    border:1px solid #E5E7EB;
+    box-shadow:0 8px 18px rgba(0,0,0,0.05);
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+
+
 
 # Initialize session state
 if 'data_loaded' not in st.session_state:
@@ -807,35 +325,73 @@ def calculate_health_score(df):
     
     return round((hr_score + step_score + sleep_score) / 3)
 
-# Sidebar
+# =========================
+# UI HELPER COMPONENTS
+# =========================
+def info_card(title, value, subtitle, accent="#5DA9E9"):
+    st.markdown(f"""
+    <div style="
+        background:#ffffff;
+        border-radius:16px;
+        padding:1.4rem;
+        border:1px solid #E5E7EB;
+        box-shadow:0 10px 24px rgba(0,0,0,0.05);
+        height:100%;
+    ">
+        <p style="font-size:0.85rem;color:#6B7280;margin-bottom:0.4rem;">
+            {title}
+        </p>
+        <h2 style="margin:0;color:{accent};font-weight:700;">
+            {value}
+        </h2>
+        <p style="font-size:0.8rem;color:#9CA3AF;margin-top:0.4rem;">
+            {subtitle}
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+#-------------------------------
+# SIDEBAR NAVIGATION 
+#------------------------------------
 with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/000000/heart-with-pulse.png", width=80)
-    st.title("💓 FitPulse")
-    st.markdown("### Health Anomaly Detection System")
+    st.title("FitPulse")
+    st.caption("Personal Fitness & Health Analytics")
     st.markdown("---")
-    
-    page = st.radio("Navigation", 
-                    ["📊 Dashboard", "📁 Upload Data", "🔍 Anomaly Analysis", 
-                     "🤖 ML Insights", "📈 Reports", "ℹ️ About"],
-                    label_visibility="collapsed")
-    
+
+    page = st.radio(
+        "Navigation",
+        [
+            "Dashboard",
+            "Upload Data",
+            "Anomaly Analysis",
+            "ML Insights",
+            "Reports",
+            "About"
+        ]
+    )
+
     st.markdown("---")
-    st.markdown("### Quick Actions")
-    
-    if st.button("🎲 Load Sample Data", use_container_width=True):
-        with st.spinner("Generating sample data..."):
-            st.session_state.health_data = generate_sample_data(30)
-            st.session_state.data_loaded = True
-            st.success("✅ Sample data loaded!")
-            st.rerun()
-    
+    st.subheader("Data Actions")
+
+    if st.button("Load Sample Data", use_container_width=True):
+        st.session_state.health_data = generate_sample_data(30)
+        st.session_state.data_loaded = True
+        st.success("Sample data loaded")
+        st.rerun()
+
     if st.session_state.data_loaded:
-        if st.button("🔄 Refresh Analysis", use_container_width=True):
+        if st.button("Refresh Analysis", use_container_width=True):
             st.rerun()
 
+
 # Main Content
-if page == "📊 Dashboard":
-    st.title("📊 Health Dashboard")
+ml_anomaly_count = 0
+avg_hr = 0
+avg_steps = 0
+health_score = 0
+
+if page == "Dashboard":
+    st.title("Health Dashboard")
     
     if not st.session_state.data_loaded:
         st.info("👈 Please load sample data or upload your own data from the sidebar to get started!")
@@ -851,99 +407,96 @@ if page == "📊 Dashboard":
             st.markdown("### 😴 Sleep")
             st.markdown("Analyze sleep quality and duration")
     else:
-        df = st.session_state.health_data
-        
-        health_score = calculate_health_score(df)
-        anomalies_df = detect_anomalies_threshold(df)
+        df = st.session_state.health_data.copy()
         df = detect_anomalies_ml(df)
+
+        health_score = calculate_health_score(df)
+        avg_hr = df["heart_rate"].mean()
+        avg_steps = df["steps"].mean()
+        ml_anomaly_count = int(df["ml_anomaly"].sum())
+        anomalies_df = detect_anomalies_threshold(df)
+        
         
         # Top Metrics
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.metric(
-                label="Health Score",
-                value=f"{health_score}%",
-                delta="Good" if health_score > 70 else "Needs Attention",
-                delta_color="normal" if health_score > 70 else "inverse"
+            info_card(
+                "Health Score",
+                f"{health_score} / 100",
+                "Overall fitness",
+                "#3B82F6"
             )
-        
+
         with col2:
-            avg_hr = df['heart_rate'].mean()
-            st.metric(
-                label="Avg Heart Rate",
-                value=f"{avg_hr:.0f} BPM",
-                delta=f"{avg_hr - 72:.0f}" if avg_hr != 72 else "Normal"
+            info_card(
+                "Avg Heart Rate",
+                f"{avg_hr:.0f} BPM",
+                "Resting average",
+                "#EF4444"
             )
-        
+
         with col3:
-            avg_steps = df['steps'].mean()
-            st.metric(
-                label="Avg Daily Steps",
-                value=f"{avg_steps:,.0f}",
-                delta=f"{((avg_steps/10000)*100):.0f}% of goal"
+            info_card(
+                "Avg Daily Steps",
+                f"{avg_steps:,.0f}",
+                "Activity level",
+                "#10B981"
             )
-        
+
         with col4:
-            ml_anomaly_count = df['ml_anomaly'].sum()
-            st.metric(
-                label="Anomalies Detected",
-                value=ml_anomaly_count,
-                delta="Requires review" if ml_anomaly_count > 5 else "Normal",
-                delta_color="inverse" if ml_anomaly_count > 5 else "normal"
+            info_card(
+                "Anomalies Detected",
+                ml_anomaly_count,
+                "ML-based detection",
+                "#F59E0B"
             )
+
         
         st.markdown("---")
         
         # Charts
         col1, col2 = st.columns(2)
-        
+            
         with col1:
             st.markdown("### 💓 Heart Rate Trends")
             fig = go.Figure()
+
             fig.add_trace(go.Scatter(
-                x=df['timestamp'],
-                y=df['heart_rate'],
-                mode='lines+markers',
-                name='Heart Rate',
-                line=dict(color='#e74c3c', width=3),
-                marker=dict(size=8, color='#c0392b', line=dict(width=2, color='#ffffff')),
-                fill='tozeroy',
-                fillcolor='rgba(231, 76, 60, 0.3)'
+                x=df["timestamp"],
+                y=df["heart_rate"],
+                mode="lines",
+                line=dict(color="#EF4444", width=2),
+                name="Heart Rate"
             ))
-            fig.add_hline(y=72, line_dash="dash", line_color="#27ae60", line_width=3,
-                         annotation_text="Normal (72 BPM)", 
-                         annotation_position="right",
-                         annotation_font=dict(color="#27ae60", size=14, family="Arial Black"))
+
+            fig.add_trace(go.Scatter(
+                x=df["timestamp"],
+                y=df["heart_rate"].rolling(7).mean(),
+                mode="lines",
+                line=dict(color="#9CA3AF", width=2, dash="dash"),
+                name="7-day Avg"
+            ))
+
             fig.update_layout(
-                plot_bgcolor='#ffffff',
-                paper_bgcolor='#ffffff',
-                height=350,
-                margin=dict(l=20, r=20, t=40, b=20),
-                font=dict(color='#2c3e50', size=13, family="Arial"),
-                xaxis=dict(
-                    gridcolor='#ecf0f1',
-                    showgrid=True,
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=12)
-                ),
-                yaxis=dict(
-                    gridcolor='#ecf0f1',
-                    showgrid=True,
-                    title='BPM',
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=12)
-                ),
-                transition=dict(duration=500, easing='cubic-in-out'),
-                hovermode='x unified'
+                title="Heart Rate Trends",
+                title_font_size=18,
+                xaxis_title="Date",
+                yaxis_title="Beats Per Minute",
+                template="simple_white",
+                hovermode="x unified",
+                margin=dict(l=40, r=40, t=60, b=40),
+                legend=dict(orientation="h", y=-0.25)
             )
+
             st.plotly_chart(fig, use_container_width=True)
-        
+
+                
         with col2:
             st.markdown("### 👟 Daily Steps")
             fig = go.Figure()
-            colors = ['#e74c3c' if s < 5000 else '#f39c12' if s < 8000 else '#27ae60' 
-                     for s in df['steps']]
+            colors = ['#e74c3c' if s < 5000 else '#f39c12' if s < 8000 else '#10B981' 
+                    for s in df['steps']]
             fig.add_trace(go.Bar(
                 x=df['timestamp'],
                 y=df['steps'],
@@ -953,9 +506,9 @@ if page == "📊 Dashboard":
                 marker_line_width=2
             ))
             fig.add_hline(y=10000, line_dash="dash", line_color="#27ae60", line_width=3,
-                         annotation_text="Goal (10,000 steps)",
-                         annotation_position="right",
-                         annotation_font=dict(color="#27ae60", size=14, family="Arial Black"))
+                        annotation_text="Goal (10,000 steps)",
+                        annotation_position="right",
+                        annotation_font=dict(color="#10B981", size=14, family="Arial Black"))
             fig.update_layout(
                 plot_bgcolor='#ffffff',
                 paper_bgcolor='#ffffff',
@@ -979,50 +532,50 @@ if page == "📊 Dashboard":
                 hovermode='x unified'
             )
             st.plotly_chart(fig, use_container_width=True)
-        
-        # Sleep chart - full width
-        st.markdown("### 😴 Sleep Patterns")
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=df['timestamp'],
-            y=df['sleep_hours'],
-            mode='lines+markers',
-            name='Sleep Hours',
-            line=dict(color='#9b59b6', width=3),
-            marker=dict(size=8, color='#8e44ad', line=dict(width=2, color='#ffffff')),
-            fill='tozeroy',
-            fillcolor='rgba(155, 89, 182, 0.3)'
-        ))
-        fig.add_hline(y=7, line_dash="dash", line_color="#27ae60", line_width=3,
-                     annotation_text="Recommended (7-8 hrs)",
-                     annotation_position="right",
-                     annotation_font=dict(color="#27ae60", size=14, family="Arial Black"))
-        fig.update_layout(
-            plot_bgcolor='#ffffff',
-            paper_bgcolor='#ffffff',
-            height=350,
-            margin=dict(l=20, r=20, t=40, b=20),
-            font=dict(color='#2c3e50', size=13, family="Arial"),
-            xaxis=dict(
-                gridcolor='#ecf0f1',
-                showgrid=True,
-                title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                tickfont=dict(color='#2c3e50', size=12)
-            ),
-            yaxis=dict(
-                gridcolor='#ecf0f1',
-                showgrid=True,
-                title='Hours',
-                title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                tickfont=dict(color='#2c3e50', size=12)
-            ),
-            transition=dict(duration=500, easing='cubic-in-out'),
-            hovermode='x unified'
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            
+            # Sleep chart - full width
+            st.markdown("### 😴 Sleep Patterns")
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=df['timestamp'],
+                y=df['sleep_hours'],
+                mode='lines+markers',
+                name='Sleep Hours',
+                line=dict(color='#9b59b6', width=3),
+                marker=dict(size=8, color='#8e44ad', line=dict(width=2, color='#ffffff')),
+                fill='tozeroy',
+                fillcolor='rgba(155, 89, 182, 0.3)'
+            ))
+            fig.add_hline(y=7, line_dash="dash", line_color="#10B981", line_width=3,
+                        annotation_text="Recommended (7-8 hrs)",
+                        annotation_position="right",
+                        annotation_font=dict(color="#10B981", size=14, family="Arial Black"))
+            fig.update_layout(
+                plot_bgcolor='#ffffff',
+                paper_bgcolor='#ffffff',
+                height=350,
+                margin=dict(l=20, r=20, t=40, b=20),
+                font=dict(color='#2c3e50', size=13, family="Arial"),
+                xaxis=dict(
+                    gridcolor='#ecf0f1',
+                    showgrid=True,
+                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
+                    tickfont=dict(color='#2c3e50', size=12)
+                ),
+                yaxis=dict(
+                    gridcolor='#ecf0f1',
+                    showgrid=True,
+                    title='Hours',
+                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
+                    tickfont=dict(color='#2c3e50', size=12)
+                ),
+                transition=dict(duration=500, easing='cubic-in-out'),
+                hovermode='x unified'
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
-elif page == "📁 Upload Data":
-    st.title("📁 Upload Your Health Data")
+elif page == "Upload Data":
+    st.title("Upload Your Health Data")
     
     st.markdown("""
     ### Supported Formats
@@ -1088,180 +641,170 @@ elif page == "📁 Upload Data":
             mime="text/csv"
         )
 
-elif page == "🔍 Anomaly Analysis":
-    st.title("🔍 Anomaly Detection Analysis")
-    
+elif page == "Anomaly Analysis":
+    st.title("Anomaly Detection Analysis")
+
     if not st.session_state.data_loaded:
-        st.warning("⚠️ Please load data first!")
+        st.warning("Please load data first.")
     else:
-        df = st.session_state.health_data
-        anomalies_df = detect_anomalies_threshold(df)
+        df = st.session_state.health_data.copy()
         df = detect_anomalies_ml(df)
-        
-        col1, col2, col3 = st.columns(3)
-        
-        # Count ML anomalies for severity display
-        ml_anomalies = df[df['ml_anomaly'] == True]
-        
-        # Calculate severity based on ML anomalies
+        anomalies_df = detect_anomalies_threshold(df)
+
+        # ==============================
+        # SEVERITY COUNTS
+        # ==============================
+        ml_anomalies = df[df["ml_anomaly"] == True]
+
         high_severity = 0
         medium_severity = 0
         low_severity = 0
-        
+
         for _, row in ml_anomalies.iterrows():
-            hr = row['heart_rate']
-            steps = row['steps']
-            sleep = row['sleep_hours']
-            
-            # Determine severity
+            hr = row["heart_rate"]
+            steps = row["steps"]
+            sleep = row["sleep_hours"]
+
             if (hr > 100 or hr < 50) and abs(hr - 72) > 30:
                 high_severity += 1
             elif hr > 100 or hr < 50 or steps < 3000 or sleep < 5 or sleep > 10:
                 medium_severity += 1
             else:
                 low_severity += 1
-        
+
+        # ==============================
+        # SEVERITY SUMMARY CARDS
+        # ==============================
+        col1, col2, col3 = st.columns(3)
+
         with col1:
             st.markdown(f"""
-            <div class="anomaly-high">
-                <h2 style="margin:0; color: #ffffff;">{high_severity}</h2>
-                <p style="margin:0; color: #ffffff;">High Severity</p>
+            <div class="card" style="border-left:6px solid {RED};">
+                <p style="color:#6B7280;margin:0;">High Severity</p>
+                <h2 style="margin:0;color:#0F172A;">{high_severity}</h2>
             </div>
             """, unsafe_allow_html=True)
-        
+
         with col2:
             st.markdown(f"""
-            <div class="anomaly-medium">
-                <h2 style="margin:0; color: #1a1a2e;">{medium_severity}</h2>
-                <p style="margin:0; color: #1a1a2e;">Medium Severity</p>
+            <div class="card" style="border-left:6px solid {YELLOW};">
+                <p style="color:#6B7280;margin:0;">Medium Severity</p>
+                <h2 style="margin:0;color:#0F172A;">{medium_severity}</h2>
             </div>
             """, unsafe_allow_html=True)
-        
+
         with col3:
             st.markdown(f"""
-            <div class="anomaly-low">
-                <h2 style="margin:0; color: #ffffff;">{low_severity}</h2>
-                <p style="margin:0; color: #ffffff;">Low Severity</p>
+            <div class="card" style="border-left:6px solid {GREEN};">
+                <p style="color:#6B7280;margin:0;">Low Severity</p>
+                <h2 style="margin:0;color:#0F172A;">{low_severity}</h2>
             </div>
             """, unsafe_allow_html=True)
-        
+
         st.markdown("---")
-        
-        st.markdown("### 📅 Anomaly Timeline")
-        
+
+        # ==============================
+        # ANOMALY TIMELINE
+        # ==============================
+        st.subheader("Anomaly Timeline")
+
         fig = go.Figure()
-        
-        normal_data = df[~df['ml_anomaly']]
+
+        normal_data = df[df["ml_anomaly"] == False]
         fig.add_trace(go.Scatter(
-            x=normal_data['timestamp'],
-            y=normal_data['heart_rate'],
-            mode='markers',
-            name='Normal',
-            marker=dict(color='#27ae60', size=12, symbol='circle',
-                       line=dict(color='#ffffff', width=2))
+            x=normal_data["timestamp"],
+            y=normal_data["heart_rate"],
+            mode="markers",
+            name="Normal",
+            marker=dict(color=GREEN, size=9, line=dict(color="#ffffff", width=1))
         ))
-        
-        anomaly_data = df[df['ml_anomaly']]
+
+        anomaly_data = df[df["ml_anomaly"] == True]
         fig.add_trace(go.Scatter(
-            x=anomaly_data['timestamp'],
-            y=anomaly_data['heart_rate'],
-            mode='markers',
-            name='Anomaly',
-            marker=dict(color='#e74c3c', size=16, symbol='x',
-                       line=dict(color='#ffffff', width=2))
+            x=anomaly_data["timestamp"],
+            y=anomaly_data["heart_rate"],
+            mode="markers",
+            name="Anomaly",
+            marker=dict(color=RED, size=13, symbol="x", line=dict(color="#ffffff", width=2))
         ))
-        
+
         fig.update_layout(
-            plot_bgcolor='#ffffff',
-            paper_bgcolor='#ffffff',
-            height=400,
-            margin=dict(l=20, r=20, t=40, b=20),
-            font=dict(color='#2c3e50', size=13, family="Arial"),
-            xaxis=dict(
-                gridcolor='#ecf0f1',
-                showgrid=True,
-                title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                tickfont=dict(color='#2c3e50', size=12)
-            ),
-            yaxis=dict(
-                gridcolor='#ecf0f1',
-                showgrid=True,
-                title='Heart Rate (BPM)',
-                title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                tickfont=dict(color='#2c3e50', size=12)
-            ),
-            legend=dict(
-                bgcolor='rgba(255, 255, 255, 0.95)',
-                bordercolor='#2c3e50',
-                borderwidth=2,
-                font=dict(color='#2c3e50', size=12, family="Arial Black")
-            ),
-            transition=dict(duration=500, easing='cubic-in-out'),
-            hovermode='x unified'
+            height=380,
+            plot_bgcolor="#FFFFFF",
+            paper_bgcolor="#FFFFFF",
+            xaxis_title="Date",
+            yaxis_title="Heart Rate (BPM)",
+            font=dict(color="#0F172A"),
+            hovermode="x unified"
         )
+
         st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("### 📋 Detailed Anomaly Report")
-        
-        ml_anomaly_count = int(df['ml_anomaly'].sum())
-        
-        if ml_anomaly_count > 0:
+
+        st.markdown("---")
+
+        # ==============================
+        # DETAILED ANOMALY REPORT
+        # ==============================
+        st.subheader("Detailed Anomaly Report")
+
+        ml_anomaly_count = int(df["ml_anomaly"].sum())
+
+        if ml_anomaly_count == 0:
+            st.success("No anomalies detected. Health metrics are within normal range.")
+        else:
             st.markdown(f"**Total ML-Detected Anomalies: {ml_anomaly_count}**")
-            st.markdown("---")
-            
-            # Show ML anomalies with details
-            ml_anomalies = df[df['ml_anomaly'] == True].copy()
-            
-            for idx, row in ml_anomalies.iterrows():
-                hr = row['heart_rate']
-                steps = row['steps']
-                sleep = row['sleep_hours']
-                date = row['timestamp']
-                
-                # Determine anomaly details
+
+            for _, row in ml_anomalies.iterrows():
+                hr = row["heart_rate"]
+                steps = row["steps"]
+                sleep = row["sleep_hours"]
+                date = row["timestamp"]
+
                 issues = []
-                severity = 'low'
-                
+                severity = "low"
+
                 if hr > 100:
                     issues.append(f"High Heart Rate: {hr:.0f} BPM")
-                    severity = 'high' if hr > 110 else 'medium'
+                    severity = "high" if hr > 110 else "medium"
                 elif hr < 50:
                     issues.append(f"Low Heart Rate: {hr:.0f} BPM")
-                    severity = 'high' if hr < 45 else 'medium'
-                
+                    severity = "high" if hr < 45 else "medium"
+
                 if steps < 3000:
                     issues.append(f"Low Activity: {steps:.0f} steps")
-                    if severity == 'low':
-                        severity = 'medium'
-                
+                    if severity == "low":
+                        severity = "medium"
+
                 if sleep < 5:
-                    issues.append(f"Sleep Deficit: {sleep:.1f} hours")
-                    if severity == 'low':
-                        severity = 'medium'
+                    issues.append(f"Sleep Deficit: {sleep:.1f} hrs")
+                    if severity == "low":
+                        severity = "medium"
                 elif sleep > 10:
-                    issues.append(f"Excessive Sleep: {sleep:.1f} hours")
-                    if severity == 'low':
-                        severity = 'medium'
-                
+                    issues.append(f"Excessive Sleep: {sleep:.1f} hrs")
+                    if severity == "low":
+                        severity = "medium"
+
                 if not issues:
-                    issues.append("Pattern deviation detected")
-                
-                severity_class = f"anomaly-{severity}"
-                text_color = "#ffffff" if severity in ['high', 'low'] else "#1a1a2e"
-                
+                    issues.append("Behavioral pattern deviation detected")
+
+                severity_color = {
+                    "high": RED,
+                    "medium": YELLOW,
+                    "low": GREEN
+                }[severity]
+
                 st.markdown(f"""
-                <div class="{severity_class}">
-                    <strong style="color: {text_color};">Anomaly Detected</strong> - 
-                    <span style="color: {text_color};">{date.strftime('%Y-%m-%d')}</span><br>
-                    <p style="color: {text_color}; margin-top: 8px;">{' | '.join(issues)}</p>
-                    <p style="color: {text_color}; margin-top: 5px; font-size: 0.9em;">Severity: {severity.upper()}</p>
+                <div class="card" style="border-left:6px solid {severity_color}; margin-bottom:1rem;">
+                    <strong>Anomaly Detected</strong>
+                    <span style="color:#6B7280;"> — {date.strftime('%Y-%m-%d')}</span>
+                    <p style="margin-top:8px;">{' | '.join(issues)}</p>
+                    <p style="color:#6B7280;font-size:0.9em;">Severity: {severity.upper()}</p>
                 </div>
                 """, unsafe_allow_html=True)
-        else:
-            st.success("✅ No anomalies detected! Your health metrics are within normal ranges.")
 
-elif page == "🤖 ML Insights":
-    st.title("🤖 Machine Learning Insights")
+
+elif page == "ML Insights":
+    st.title("Machine Learning Insights")
     
     if not st.session_state.data_loaded:
         st.warning("⚠️ Please load data first!")
@@ -1282,7 +825,7 @@ elif page == "🤖 ML Insights":
                     <h3 style="color: #1a1a2e !important;">Cluster {i+1}</h3>
                     <p style="color: #2d3436 !important;"><strong style="color: #0984e3 !important;">{len(cluster_data)}</strong> days</p>
                     <p style="color: #2d3436 !important;">Avg HR: <strong style="color: #e74c3c !important;">{cluster_data['heart_rate'].mean():.0f} BPM</strong></p>
-                    <p style="color: #2d3436 !important;">Avg Steps: <strong style="color: #3498db !important;">{cluster_data['steps'].mean():,.0f}</strong></p>
+                    <p style="color: #2d3436 !important;">Avg Steps: <strong style="color: #3B82F6 !important;">{cluster_data['steps'].mean():,.0f}</strong></p>
                     <p style="color: #2d3436 !important;">Avg Sleep: <strong style="color: #9b59b6 !important;">{cluster_data['sleep_hours'].mean():.1f} hrs</strong></p>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1414,150 +957,162 @@ elif page == "🤖 ML Insights":
             )
             st.plotly_chart(fig, use_container_width=True)
 
-elif page == "📈 Reports":
-    st.title("📈 Health Reports & Export")
-    
+elif page == "Reports":
+    st.title("📑 Health Reports & Export")
+
     if not st.session_state.data_loaded:
         st.warning("⚠️ Please load data first!")
     else:
-        df = st.session_state.health_data
-        anomalies_df = detect_anomalies_threshold(df)
+        # =========================
+        # DATA PREPARATION
+        # =========================
+        df = st.session_state.health_data.copy()
+
+        # Run ML anomaly detection ONCE
+        df = detect_anomalies_ml(df)
+
+        # Safety check
+        if "ml_anomaly" not in df.columns:
+            df["ml_anomaly"] = False
+
+        ml_anomaly_count = int(df["ml_anomaly"].sum())
         health_score = calculate_health_score(df)
-        
-        st.markdown("### 📊 Report Summary")
-        
         report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        st.markdown(f"""
-        <div class="metric-card">
-            <h3 style="color: #1a1a2e !important;">Health Analysis Report</h3>
-            <p style="color: #2d3436 !important;"><strong style="color: #0984e3 !important;">Generated:</strong> {report_date}</p>
-            <p style="color: #2d3436 !important;"><strong style="color: #0984e3 !important;">Analysis Period:</strong> {len(df)} days</p>
-            <p style="color: #2d3436 !important;"><strong style="color: #0984e3 !important;">Health Score:</strong> {health_score}/100</p>
-            <p style="color: #2d3436 !important;"><strong style="color: #0984e3 !important;">Total Anomalies:</strong> {int(df['ml_anomaly'].sum())}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
+
+        # =========================
+        # REPORT SUMMARY
+        # =========================
+        st.markdown("### 📊 Report Summary")
+
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <h3 style="color:#111827;">Health Analysis Report</h3>
+                <p><strong>Generated:</strong> {report_date}</p>
+                <p><strong>Analysis Period:</strong> {len(df)} days</p>
+                <p><strong>Health Score:</strong> {health_score}/100</p>
+                <p><strong>Total ML Anomalies:</strong> {ml_anomaly_count}</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # =========================
+        # DETAILED METRICS
+        # =========================
         st.markdown("### 📉 Detailed Metrics")
-        
+
         col1, col2, col3 = st.columns(3)
-        
+
+        # ---- HEART RATE ----
         with col1:
-            st.markdown("#### 💓 Heart Rate Summary")
-            hr_stats = df['heart_rate'].describe()
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="color: #2d3436 !important;">Mean: <strong style="color: #e74c3c !important;">{hr_stats['mean']:.1f} BPM</strong></p>
-                <p style="color: #2d3436 !important;">Min: <strong style="color: #e74c3c !important;">{hr_stats['min']:.1f} BPM</strong></p>
-                <p style="color: #2d3436 !important;">Max: <strong style="color: #e74c3c !important;">{hr_stats['max']:.1f} BPM</strong></p>
-                <p style="color: #2d3436 !important;">Std Dev: <strong style="color: #e74c3c !important;">{hr_stats['std']:.1f}</strong></p>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            hr = df["heart_rate"].describe()
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <h4>💓 Heart Rate</h4>
+                    <p>Mean: <strong style="color:#EF4444;">{hr['mean']:.1f} BPM</strong></p>
+                    <p>Min: {hr['min']:.1f} BPM</p>
+                    <p>Max: {hr['max']:.1f} BPM</p>
+                    <p>Std Dev: {hr['std']:.1f}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # ---- STEPS ----
         with col2:
-            st.markdown("#### 👟 Steps Summary")
-            steps_stats = df['steps'].describe()
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="color: #2d3436 !important;">Mean: <strong style="color: #3498db !important;">{steps_stats['mean']:.0f} steps</strong></p>
-                <p style="color: #2d3436 !important;">Min: <strong style="color: #3498db !important;">{steps_stats['min']:.0f} steps</strong></p>
-                <p style="color: #2d3436 !important;">Max: <strong style="color: #3498db !important;">{steps_stats['max']:.0f} steps</strong></p>
-                <p style="color: #2d3436 !important;">Std Dev: <strong style="color: #3498db !important;">{steps_stats['std']:.0f}</strong></p>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            steps = df["steps"].describe()
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <h4>👟 Steps</h4>
+                    <p>Mean: <strong style="color:#3B82F6;">{steps['mean']:.0f}</strong></p>
+                    <p>Min: {steps['min']:.0f}</p>
+                    <p>Max: {steps['max']:.0f}</p>
+                    <p>Std Dev: {steps['std']:.0f}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # ---- SLEEP ----
         with col3:
-            st.markdown("#### 😴 Sleep Summary")
-            sleep_stats = df['sleep_hours'].describe()
-            st.markdown(f"""
-            <div class="metric-card">
-                <p style="color: #2d3436 !important;">Mean: <strong style="color: #9b59b6 !important;">{sleep_stats['mean']:.1f} hrs</strong></p>
-                <p style="color: #2d3436 !important;">Min: <strong style="color: #9b59b6 !important;">{sleep_stats['min']:.1f} hrs</strong></p>
-                <p style="color: #2d3436 !important;">Max: <strong style="color: #9b59b6 !important;">{sleep_stats['max']:.1f} hrs</strong></p>
-                <p style="color: #2d3436 !important;">Std Dev: <strong style="color: #9b59b6 !important;">{sleep_stats['std']:.1f}</strong></p>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            sleep = df["sleep_hours"].describe()
+            st.markdown(
+                f"""
+                <div class="metric-card">
+                    <h4>😴 Sleep</h4>
+                    <p>Mean: <strong style="color:#10B981;">{sleep['mean']:.1f} hrs</strong></p>
+                    <p>Min: {sleep['min']:.1f} hrs</p>
+                    <p>Max: {sleep['max']:.1f} hrs</p>
+                    <p>Std Dev: {sleep['std']:.1f}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
         st.markdown("---")
+
+        # =========================
+        # EXPORT OPTIONS
+        # =========================
         st.markdown("### 📥 Export Options")
-        
+
         col1, col2, col3 = st.columns(3)
-        
+
+        # ---- FULL DATA ----
         with col1:
-            csv = df.to_csv(index=False)
             st.download_button(
-                label="📊 Download Full Data (CSV)",
-                data=csv,
+                "📊 Download Full Data (CSV)",
+                data=df.to_csv(index=False),
                 file_name=f"health_data_{datetime.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
                 use_container_width=True
             )
-        
+
+        # ---- ANOMALIES ----
         with col2:
-            if int(df['ml_anomaly'].sum()) > 0:
-                # Create anomalies export with ML detected anomalies
-                ml_anomalies = df[df['ml_anomaly'] == True][['timestamp', 'heart_rate', 'steps', 'sleep_hours']].copy()
-                ml_anomalies['anomaly_detected'] = True
-                anomaly_csv = ml_anomalies.to_csv(index=False)
+            if ml_anomaly_count > 0:
+                anomalies = df[df["ml_anomaly"] == True][
+                    ["timestamp", "heart_rate", "steps", "sleep_hours"]
+                ]
+
                 st.download_button(
-                    label="⚠️ Download Anomalies (CSV)",
-                    data=anomaly_csv,
+                    "⚠️ Download Anomalies (CSV)",
+                    data=anomalies.to_csv(index=False),
                     file_name=f"anomalies_{datetime.now().strftime('%Y%m%d')}.csv",
                     mime="text/csv",
                     use_container_width=True
                 )
-        
+
+        # ---- SUMMARY REPORT ----
         with col3:
-            # Count ML anomalies and calculate severity breakdown
-            ml_anomaly_total = int(df['ml_anomaly'].sum())
-            ml_anomalies = df[df['ml_anomaly'] == True]
-            
-            high_count = 0
-            medium_count = 0
-            low_count = 0
-            
-            for _, row in ml_anomalies.iterrows():
-                hr = row['heart_rate']
-                steps = row['steps']
-                sleep = row['sleep_hours']
-                
-                if (hr > 100 or hr < 50) and abs(hr - 72) > 30:
-                    high_count += 1
-                elif hr > 100 or hr < 50 or steps < 3000 or sleep < 5 or sleep > 10:
-                    medium_count += 1
-                else:
-                    low_count += 1
-            
-            summary_report = f"""
-FitPulse Health Report
-Generated: {report_date}
+            summary_text = f"""
+            FitPulse Health Report
+            Generated: {report_date}
 
-=== SUMMARY ===
-Analysis Period: {len(df)} days
-Health Score: {health_score}/100
-Total Anomalies: {ml_anomaly_total}
+            Analysis Period: {len(df)} days
+            Health Score: {health_score}/100
+            Total ML Anomalies: {ml_anomaly_count}
 
-=== AVERAGE METRICS ===
-Heart Rate: {df['heart_rate'].mean():.1f} BPM
-Daily Steps: {df['steps'].mean():.0f}
-Sleep: {df['sleep_hours'].mean():.1f} hours
-
-=== ANOMALY BREAKDOWN ===
-High Severity: {high_count}
-Medium Severity: {medium_count}
-Low Severity: {low_count}
+            Average Heart Rate: {df['heart_rate'].mean():.1f} BPM
+            Average Steps: {df['steps'].mean():.0f}
+            Average Sleep: {df['sleep_hours'].mean():.1f} hrs
             """
-            
+
             st.download_button(
-                label="📄 Download Summary (TXT)",
-                data=summary_report,
+                "📄 Download Summary (TXT)",
+                data=summary_text,
                 file_name=f"summary_{datetime.now().strftime('%Y%m%d')}.txt",
                 mime="text/plain",
                 use_container_width=True
             )
 
+
+
 else:  # About page
-    st.title("ℹ️ About FitPulse")
+    st.title("About FitPulse")
     
     st.markdown("""
     ## 💓 FitPulse Health Anomaly Detection System
