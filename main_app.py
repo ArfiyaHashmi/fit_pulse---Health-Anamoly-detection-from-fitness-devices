@@ -3,12 +3,27 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import os
 from datetime import datetime, timedelta
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import IsolationForest
-import json
-import io
+import plotly.io as pio
+pio.templates.default = "plotly_dark"
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from theme import apply_fitpulse_plotly_theme
+
+if "health_data" not in st.session_state:
+    st.session_state.health_data = None
+
+if "data_loaded" not in st.session_state:
+    st.session_state.data_loaded = False
+
+
+# THEME CONSTANTS #
+
 
 GREEN = "#10B981"
 RED = "#EF4444"
@@ -29,23 +44,23 @@ st.markdown("""
 <style>
 
 /* ===============================
-   GLOBAL THEME
+   GLOBAL THEME (DARK)
 ================================ */
 html, body {
     font-family: 'Inter', 'Segoe UI', sans-serif;
-    background-color: #F9FAFB;
+    background-color: #0F172A;
 }
 
 .stApp {
-    background-color: #F9FAFB;
-    color: #1F2937;
+    background-color: #0F172A;
+    color: #ffffff;
 }
 
 /* ===============================
    PAGE LAYOUT
 ================================ */
 .block-container {
-    max-width: 1400px;
+    max-width: 1450px;
     padding-top: 2rem;
     padding-bottom: 2rem;
 }
@@ -53,116 +68,211 @@ html, body {
 /* ===============================
    HEADINGS
 ================================ */
-h1 {
-    font-size: 2rem;
+h1, h2, h3, h4 {
+    color: #ffffff;
     font-weight: 700;
-    color: #1F2937;
-}
-h2 {
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: #374151;
-}
-h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #4B5563;
 }
 
 /* ===============================
    SIDEBAR
 ================================ */
 section[data-testid="stSidebar"] {
-    background-color: #FFFFFF;
-    border-right: 1px solid #E5E7EB;
-    padding-top: 1rem;
+    background: linear-gradient(180deg, #020617, #020617);
+    border-right: 1px solid #1F2937;
 }
-
-section[data-testid="stSidebar"] h1 {
-    font-size: 1.4rem;
+section[data-testid="stSidebar"] .sidebar-title {
+    color: #7DD3FC !important;
     font-weight: 700;
 }
 
-section[data-testid="stSidebar"] label {
+.section-title {
+    color: #7DD3FC;
+    font-weight: 600;
+    margin-top: 1.2rem;
+    margin-bottom: 0.6rem;
+}
+
+            
+/* ===============================
+   NAV BUTTONS
+================================ */
+.nav-card {
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+
+    /* Navy gradient like sidebar */
+    background: linear-gradient(180deg, #020617, #0F172A);
+
+    color: #CBD5E1;
     font-weight: 500;
-    color: #374151;
+    text-align: center;
+
+    /* Blue gradient outline */
+    border: 1.5px solid transparent;
+    background-clip: padding-box;
+    box-shadow: 0 0 0 1.5px #38BDF8;
+
+    cursor: pointer;
+
+    transition: 
+        box-shadow 0.2s ease,
+        background 0.2s ease,
+        color 0.2s ease;
+}
+
+/* Hover → white outline */
+.nav-card:hover {
+    box-shadow: 0 0 0 1.5px #FFFFFF;
+}
+
+/* Active tab → blue gradient fill */
+.nav-active {
+    background: linear-gradient(90deg, #38BDF8, #2563EB);
+    color: #FFFFFF;
+    font-weight: 600;
+
+    box-shadow: none;
+    border: none;
 }
 
 /* ===============================
-   METRIC CARDS
+   METRIC & INFO CARDS
 ================================ */
-[data-testid="stMetric"] {
-    background-color: #FFFFFF;
-    border-radius: 14px;
-    padding: 1.3rem;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.04);
+.metric-card,
+[data-testid="stMetric"],
+.card {
+    background: linear-gradient(
+        145deg,
+        #020617,
+        #111827
+    );
+    border-radius: 18px;
+    padding: 1.4rem;
+    border: 1px solid #1F2937;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+}
+.metric-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    transition: 0.3s ease;
 }
 
+
+/* Metric text */
 [data-testid="stMetricLabel"] {
-    font-size: 0.85rem;
-    color: #6B7280;
+    color: #9CA3AF;
 }
 
 [data-testid="stMetricValue"] {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #5DA9E9;
+    color: #38BDF8;
+    font-size: 2.1rem;
+    font-weight: 800;
 }
 
 /* ===============================
-   STATUS CARDS
+   STATUS / ANOMALY CARDS
 ================================ */
-.status-normal {
-    background: #ECFDF5;
-    border-left: 6px solid #7BC6A4;
-    padding: 1rem;
-    border-radius: 12px;
-}
-.status-warning {
-    background: #FFFBEB;
-    border-left: 6px solid #F4D06F;
-    padding: 1rem;
-    border-radius: 12px;
-}
-.status-critical {
-    background: #FEF2F2;
-    border-left: 6px solid #F28B82;
-    padding: 1rem;
-    border-radius: 12px;
+.anomaly-high {
+    background: rgba(239, 68, 68, 0.15);
+    border: 6px solid #EF4444;
 }
 
+.anomaly-medium {
+    background: rgba(250, 204, 21, 0.15);
+    border: 6px solid #FACC15;
+}
+
+.anomaly-low {
+    background: rgba(34, 197, 94, 0.15);
+    border: 6px solid #22C55E;
+}
 /* ===============================
-   BUTTONS
+   BUTTONS (MINIMAL NAV STYLE)
 ================================ */
 .stButton button {
-    background-color: #5DA9E9;
-    color: white;
+    background: linear-gradient(180deg, #020617, #0F172A);
+    color: #CBD5E1;
+    font-weight: 500;
+
     border-radius: 10px;
-    font-weight: 600;
     padding: 0.55rem 1.4rem;
-    border: none;
+
+    /* Blue outline */
+    border: 1.5px solid #38BDF8;
+
+    box-shadow: none;
+    transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
 }
+
+/* Hover → white border */
 .stButton button:hover {
-    background-color: #4A98D9;
+    border-color: #FFFFFF;
+    background: linear-gradient(180deg, #020617, #0F172A);
 }
+
+/* Active tab (clicked / selected) */
+.stButton button:focus,
+.stButton button:active {
+    background: linear-gradient(90deg, #38BDF8, #2563EB);
+    color: #FFFFFF;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+
+/* ===============================
+   DOWNLOAD BUTTONS
+================================ */
+div.stDownloadButton > button {
+    background: linear-gradient(135deg, #020617, #0F172A);
+    color: #E5E7EB;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 0.6rem 1.6rem;
+    font-weight: 700;
+    box-shadow: 0 0 18px rgba(56,189,248,0.25);
+    transition: all 0.3s ease;
+}
+
+div.stDownloadButton > button:hover {
+    background: linear-gradient(135deg, #020617, #1E293B);
+    color: #38BDF8;
+    border-color: #38BDF8;
+    box-shadow: 0 0 25px rgba(56,189,248,0.5);
+    transform: translateY(-2px);
+}
+
 
 /* ===============================
    DATAFRAME & PLOTS
 ================================ */
 [data-testid="stDataFrame"],
-.js-plotly-plot {
-    background-color: #FFFFFF;
-    border-radius: 14px;
-    border: 1px solid #E5E7EB;
+.js-plotly-plot {       
+    background-color: #020617 !important;
+    border-radius: 18px;
+    border: 1px solid #1F2937;
 }
 
+.fitpulse-caption {
+    font-size: 1rem;
+    color: #ffffff;
+    text-align: center;
+    margin-top: -6px;
+    margin-bottom: 14px;
+    font-style: italic;
+
+    background: rgba(148,163,184,0.08);
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(148,163,184,0.15);
+} 
 /* ===============================
    TABS
 ================================ */
 .stTabs [aria-selected="true"] {
-    background-color: #E8F2FC;
-    border-radius: 8px;
+    background-color: #020617;
+    border-radius: 10px;
+    border: 1px solid #38BDF8;
 }
 
 /* ===============================
@@ -171,47 +281,20 @@ section[data-testid="stSidebar"] label {
 ::-webkit-scrollbar {
     width: 8px;
 }
+
 ::-webkit-scrollbar-thumb {
-    background-color: #CBD5E1;
+    background: linear-gradient(#38BDF8, #2563EB);
     border-radius: 10px;
 }
 
-.anomaly-high {
-    background: #FDECEA;
-    border-left: 6px solid #EF4444;
-    padding: 1rem;
-    border-radius: 12px;
-    margin-bottom: 1rem;
+/* Reduce spacing around status badges inside cards */
+div[data-testid="stAlert"] {
+    margin-top: 6px;
+    margin-bottom: 8px;
+    padding: 10px 14px;
 }
-
-.anomaly-medium {
-    background: #FFF4E5;
-    border-left: 6px solid #F59E0B;
-    padding: 1rem;
-    border-radius: 12px;
-    margin-bottom: 1rem;
-}
-
-.anomaly-low {
-    background: #ECFDF5;
-    border-left: 6px solid #10B981;
-    padding: 1rem;
-    border-radius: 12px;
-    margin-bottom: 1rem;
-}
-
-.metric-card {
-    background:#ffffff;
-    border-radius:16px;
-    padding:1.4rem;
-    border:1px solid #E5E7EB;
-    box-shadow:0 8px 18px rgba(0,0,0,0.05);
-}
-
 </style>
 """, unsafe_allow_html=True)
-
-
 
 
 # Initialize session state
@@ -252,6 +335,106 @@ def generate_sample_data(days=30):
         })
     
     return pd.DataFrame(data)
+
+def generate_pdf_report(df, health_score, ml_anomaly_count, risk_label):
+    file_path = os.path.join(os.getcwd(), "FitPulse_Health_Report.pdf")
+
+    doc = SimpleDocTemplate(
+        file_path,
+        pagesize=A4,
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
+
+    styles = getSampleStyleSheet()
+    content = []
+
+    # =========================
+    # TITLE
+    # =========================
+    content.append(Paragraph("<b>FitPulse Health Report</b>", styles["Title"]))
+    content.append(Spacer(1, 16))
+
+    # =========================
+    # META INFO
+    # =========================
+    content.append(Paragraph(
+        f"""
+        <b>Generated:</b> {datetime.now().strftime('%Y-%m-%d %H:%M')}<br/>
+        <b>Analysis Period:</b> {len(df)} days<br/>
+        <b>Health Score:</b> {health_score}/100<br/>
+        <b>Total ML Anomalies:</b> {ml_anomaly_count}<br/>
+        <b>Risk Level:</b> {risk_label}
+        """,
+        styles["Normal"]
+    ))
+    content.append(Spacer(1, 14))
+
+    # =========================
+    # AVERAGE METRICS
+    # =========================
+    content.append(Paragraph("<b>Average Health Metrics</b>", styles["Heading2"]))
+    content.append(Spacer(1, 10))
+
+    content.append(Paragraph(
+        f"""
+        • <b>Heart Rate:</b> {df['heart_rate'].mean():.1f} BPM<br/>
+        • <b>Daily Steps:</b> {df['steps'].mean():.0f}<br/>
+        • <b>Sleep Duration:</b> {df['sleep_hours'].mean():.1f} hrs
+        """,
+        styles["Normal"]
+    ))
+    content.append(Spacer(1, 14))
+
+    # =========================
+    # METRIC RANGES
+    # =========================
+    content.append(Paragraph("<b>Observed Metric Ranges</b>", styles["Heading2"]))
+    content.append(Spacer(1, 8))
+
+    content.append(Paragraph(
+        f"""
+        <b>Heart Rate:</b> {df['heart_rate'].min():.0f} – {df['heart_rate'].max():.0f} BPM<br/>
+        <b>Steps:</b> {df['steps'].min():.0f} – {df['steps'].max():.0f}<br/>
+        <b>Sleep:</b> {df['sleep_hours'].min():.1f} – {df['sleep_hours'].max():.1f} hrs
+        """,
+        styles["Normal"]
+    ))
+    content.append(Spacer(1, 14))
+
+    # =========================
+    # DOCTOR NOTES
+    # =========================
+    content.append(Paragraph("<b>Clinical Notes</b>", styles["Heading2"]))
+    content.append(Spacer(1, 8))
+
+    note = "Patient metrics are within acceptable ranges."
+    if risk_label == "HIGH":
+        note = "High-risk indicators detected. Further medical evaluation recommended."
+    elif risk_label == "MEDIUM":
+        note = "Moderate deviations observed. Lifestyle adjustments advised."
+
+    content.append(Paragraph(note, styles["Normal"]))
+
+    # =========================
+    # BUILD PDF
+    # =========================
+    doc.build(content)
+
+    return file_path
+
+
+
+def get_risk_level(health_score, anomaly_count):
+    if health_score >= 80 and anomaly_count == 0:
+        return "LOW", "#22C55E"
+    elif health_score >= 60 and anomaly_count <= 3:
+        return "MEDIUM", "#FACC15"
+    else:
+        return "HIGH", "#EF4444"
+
 
 def detect_anomalies_threshold(df):
     """Rule-based anomaly detection using thresholds"""
@@ -325,6 +508,31 @@ def calculate_health_score(df):
     
     return round((hr_score + step_score + sleep_score) / 3)
 
+def status_badge(label, level):
+    if level == "good":
+        st.success(f"🟢 {label}")
+    elif level == "moderate":
+        st.warning(f"🟡 {label}")
+    else:
+        st.error(f"🔴 {label}")
+
+
+def chart_card_start():
+    st.markdown("""
+    <div style="
+        background:#020617;
+        padding:16px;
+        border-radius:14px;
+        border:1px solid rgba(255,255,255,0.08);
+        margin-bottom:16px;
+    ">
+    """, unsafe_allow_html=True)
+
+
+def chart_card_end():
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
 # =========================
 # UI HELPER COMPONENTS
 # =========================
@@ -353,49 +561,93 @@ def info_card(title, value, subtitle, accent="#5DA9E9"):
 #-------------------------------
 # SIDEBAR NAVIGATION 
 #------------------------------------
-with st.sidebar:
-    st.title("FitPulse")
-    st.caption("Personal Fitness & Health Analytics")
-    st.markdown("---")
+# -----------------------------
+# SESSION STATE INIT
+# -----------------------------
+if "page" not in st.session_state:
+    st.session_state.page = "Dashboard"
 
-    page = st.radio(
-        "Navigation",
-        [
-            "Dashboard",
-            "Upload Data",
-            "Anomaly Analysis",
-            "ML Insights",
-            "Reports",
-            "About"
-        ]
+if "data_loaded" not in st.session_state:
+    st.session_state.data_loaded = False
+
+# -----------------------------
+# SIDEBAR
+# -----------------------------
+with st.sidebar:
+    st.markdown(
+    """
+    <h2 class="sidebar-title">🩺 FitPulse</h2>
+    """,
+    unsafe_allow_html=True
+)
+
+
+    def nav_button(label, page_name):
+        if st.session_state.page == page_name:
+            st.markdown(
+                f"<div class='nav-card nav-active'>{label}</div>",
+                unsafe_allow_html=True
+            )
+        else:
+            if st.button(label, use_container_width=True, key=f"nav_{page_name}"):
+                st.session_state.page = page_name
+                st.rerun()
+
+    # -------- NAVIGATION --------
+    nav_button("Home", "Dashboard")
+    nav_button("Upload Data", "Upload Data")
+    nav_button("Anomaly Analysis", "Anomaly Analysis")
+    nav_button("ML Insights", "ML Insights")
+    nav_button("Reports", "Reports")
+
+    st.markdown("---")
+    st.markdown(
+    "<h3 style='color:#ffffff' class='section-title'>⚙️ Data Actions</h3>",
+    unsafe_allow_html=True
     )
 
-    st.markdown("---")
-    st.subheader("Data Actions")
 
-    if st.button("Load Sample Data", use_container_width=True):
+    # -------- DATA ACTIONS --------
+    if st.button("Load Sample Data", use_container_width=True, key="load_sample"):
         st.session_state.health_data = generate_sample_data(30)
         st.session_state.data_loaded = True
-        st.success("Sample data loaded")
+        st.success("Sample data loaded successfully")
         st.rerun()
 
     if st.session_state.data_loaded:
-        if st.button("Refresh Analysis", use_container_width=True):
-            st.rerun()
+        if st.button("Refresh Analysis", use_container_width=True, key="refresh_analysis"):
+            # Force recalculation by running anomaly detection again
+            if st.session_state.health_data is not None:
+                st.session_state.health_data = detect_anomalies_ml(st.session_state.health_data)
+                st.success("Analysis refreshed successfully!")
+                st.rerun()
 
-
+# -----------------------------
 # Main Content
+
+page = st.session_state.page
 ml_anomaly_count = 0
 avg_hr = 0
 avg_steps = 0
 health_score = 0
 
+
 if page == "Dashboard":
-    st.title("Health Dashboard")
+    st.markdown("""
+    <h2 style="color:#38BDF8;text-shadow:0 0 12px rgba(56,189,248,0.6);">
+    💓 Health Dashboard
+    </h2>
+    """, unsafe_allow_html=True)
+    
     
     if not st.session_state.data_loaded:
         st.info("👈 Please load sample data or upload your own data from the sidebar to get started!")
-        
+        st.info(
+            "FitPulse analyzes your activity, sleep, and heart rate patterns using machine learning "
+            "and groups them into easy-to-understand health behavior categories. "
+            "This helps you quickly recognize trends and take action."
+        )
+
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown("### 💓 Heart Rate")
@@ -456,10 +708,25 @@ if page == "Dashboard":
         st.markdown("---")
         
         # Charts
+
         col1, col2 = st.columns(2)
             
         with col1:
+            
+            chart_card_start()
+
             st.markdown("### 💓 Heart Rate Trends")
+            avg_hr = df["heart_rate"].mean()
+
+            if avg_hr < 75:
+                status_badge("Heart rate is stable", "good")
+            elif avg_hr < 90:
+                status_badge("Heart rate is moderately elevated", "moderate")
+            else:
+                status_badge("High heart rate detected", "risk")
+
+            st.caption("Daily heart rate with 7-day moving average")
+
             fig = go.Figure()
 
             fig.add_trace(go.Scatter(
@@ -467,7 +734,7 @@ if page == "Dashboard":
                 y=df["heart_rate"],
                 mode="lines",
                 line=dict(color="#EF4444", width=2),
-                name="Heart Rate"
+                name="Daily HR"
             ))
 
             fig.add_trace(go.Scatter(
@@ -479,115 +746,137 @@ if page == "Dashboard":
             ))
 
             fig.update_layout(
-                title="Heart Rate Trends",
-                title_font_size=18,
-                xaxis_title="Date",
-                yaxis_title="Beats Per Minute",
-                template="simple_white",
                 hovermode="x unified",
-                margin=dict(l=40, r=40, t=60, b=40),
-                legend=dict(orientation="h", y=-0.25)
+                margin=dict(l=30, r=30, t=40, b=30)
             )
 
+            fig = apply_fitpulse_plotly_theme(fig, height=320)
             st.plotly_chart(fig, use_container_width=True)
+            chart_card_end()
+
 
                 
         with col2:
-            st.markdown("### 👟 Daily Steps")
-            fig = go.Figure()
-            colors = ['#e74c3c' if s < 5000 else '#f39c12' if s < 8000 else '#10B981' 
-                    for s in df['steps']]
-            fig.add_trace(go.Bar(
-                x=df['timestamp'],
-                y=df['steps'],
-                marker_color=colors,
-                name='Steps',
-                marker_line_color='#2c3e50',
-                marker_line_width=2
-            ))
-            fig.add_hline(y=10000, line_dash="dash", line_color="#27ae60", line_width=3,
-                        annotation_text="Goal (10,000 steps)",
-                        annotation_position="right",
-                        annotation_font=dict(color="#10B981", size=14, family="Arial Black"))
-            fig.update_layout(
-                plot_bgcolor='#ffffff',
-                paper_bgcolor='#ffffff',
-                height=350,
-                margin=dict(l=20, r=20, t=40, b=20),
-                font=dict(color='#2c3e50', size=13, family="Arial"),
-                xaxis=dict(
-                    gridcolor='#ecf0f1',
-                    showgrid=True,
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=12)
-                ),
-                yaxis=dict(
-                    gridcolor='#ecf0f1',
-                    showgrid=True,
-                    title='Steps',
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=12)
-                ),
-                transition=dict(duration=500, easing='cubic-in-out'),
-                hovermode='x unified'
-            )
-            st.plotly_chart(fig, use_container_width=True)
             
-            # Sleep chart - full width
-            st.markdown("### 😴 Sleep Patterns")
+            chart_card_start()
+
+            st.markdown("### 👟 Daily Steps")
+
+            goal_rate = (df["steps"] >= 10000).mean() * 100
+
+            if goal_rate > 60:
+                status_badge("Good activity consistency", "good")
+            elif goal_rate > 30:
+                status_badge("Moderate activity levels", "moderate")
+            else:
+                status_badge("Low daily activity detected", "risk")
+
+            st.caption("Bars show daily activity against step goal")
+
+            colors = [
+                "#EF4444" if s < 5000 else
+                "#FACC15" if s < 8000 else
+                "#10B981"
+                for s in df["steps"]
+            ]
+
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=df['timestamp'],
-                y=df['sleep_hours'],
-                mode='lines+markers',
-                name='Sleep Hours',
-                line=dict(color='#9b59b6', width=3),
-                marker=dict(size=8, color='#8e44ad', line=dict(width=2, color='#ffffff')),
-                fill='tozeroy',
-                fillcolor='rgba(155, 89, 182, 0.3)'
+            fig.add_trace(go.Bar(
+                x=df["timestamp"],
+                y=df["steps"],
+                marker_color=colors,
+                name="Steps"
             ))
-            fig.add_hline(y=7, line_dash="dash", line_color="#10B981", line_width=3,
-                        annotation_text="Recommended (7-8 hrs)",
-                        annotation_position="right",
-                        annotation_font=dict(color="#10B981", size=14, family="Arial Black"))
-            fig.update_layout(
-                plot_bgcolor='#ffffff',
-                paper_bgcolor='#ffffff',
-                height=350,
-                margin=dict(l=20, r=20, t=40, b=20),
-                font=dict(color='#2c3e50', size=13, family="Arial"),
-                xaxis=dict(
-                    gridcolor='#ecf0f1',
-                    showgrid=True,
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=12)
-                ),
-                yaxis=dict(
-                    gridcolor='#ecf0f1',
-                    showgrid=True,
-                    title='Hours',
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=12)
-                ),
-                transition=dict(duration=500, easing='cubic-in-out'),
-                hovermode='x unified'
+
+            fig.add_hline(
+                y=10000,
+                line_dash="dash",
+                line_color="#10B981",
+                annotation_text="Goal (10k)",
+                annotation_font=dict(color="#10B981")
             )
+
+            fig.update_layout(
+                hovermode="x unified",
+                margin=dict(l=30, r=30, t=40, b=30),
+                showlegend=False
+            )
+
+            fig = apply_fitpulse_plotly_theme(fig, height=320)
             st.plotly_chart(fig, use_container_width=True)
+            chart_card_end()
+
+            
+        # Sleep chart - full width
+
+        chart_card_start()
+
+        avg_sleep = df["sleep_hours"].mean()
+
+        st.markdown("### 😴 Sleep Patterns")
+        if avg_sleep >= 7:
+            status_badge("Healthy sleep duration", "good")
+        elif avg_sleep >= 6:
+            status_badge("Sleep slightly below optimal", "moderate")
+        else:
+            status_badge("Sleep deficit detected", "risk")
+            
+        st.caption("Daily sleep duration with recommended baseline")
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(
+            x=df["timestamp"],
+            y=df["sleep_hours"],
+            mode="lines+markers",
+            line=dict(color="#8B5CF6", width=3),
+            marker=dict(size=7),
+            fill="tozeroy",
+            fillcolor="rgba(139,92,246,0.25)",
+            name="Sleep Hours"
+        ))
+
+        fig.add_hline(
+            y=7,
+            line_dash="dash",
+            line_color="#10B981",
+            annotation_text="Recommended (7–8 hrs)",
+            annotation_font=dict(color="#10B981")
+        )
+
+        fig.update_layout(
+            hovermode="x unified",
+            margin=dict(l=30, r=30, t=40, b=30)
+        )
+
+        fig = apply_fitpulse_plotly_theme(fig, height=340)
+        st.plotly_chart(fig, use_container_width=True)
+        chart_card_end()
+
 
 elif page == "Upload Data":
-    st.title("Upload Your Health Data")
+    st.markdown("""
+    <h2 style="color:#38BDF8;text-shadow:0 0 12px rgba(56,189,248,0.6);">
+      Upload Your Health Data
+    </h2>
+    """, unsafe_allow_html=True)
+
     
     st.markdown("""
+    <div style="color:#E5E7EB; font-size:15px; line-height:1.6">
+
     ### Supported Formats
-    - **CSV**: Comma-separated values
-    - **JSON**: JavaScript Object Notation
-    
+    - **CSV**: Comma-separated values  
+    - **JSON**: JavaScript Object Notation  
+
     ### Required Columns
-    - `timestamp` or `date`: Date/time of measurement
-    - `heart_rate`: Heart rate in BPM
-    - `steps`: Daily step count
-    - `sleep_hours`: Hours of sleep
-    """)
+    - `timestamp` or `date`
+    - `heart_rate`
+    - `steps`
+    - `sleep_hours`
+
+    </div>
+    """, unsafe_allow_html=True)
+
     
     uploaded_file = st.file_uploader("Choose a file", type=['csv', 'json'])
     
@@ -598,18 +887,25 @@ elif page == "Upload Data":
             else:
                 df = pd.read_json(uploaded_file)
             
-            st.success("✅ File uploaded successfully!")
+            st.success("File uploaded successfully!")
             
             st.markdown("### Data Preview")
-            st.dataframe(df.head(10), use_container_width=True)
+            st.dataframe(
+                df.head(10),
+                use_container_width=True,
+                hide_index=True
+            )
+
             
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Total Rows", len(df))
+                info_card("Total Rows", len(df), "Records", "#38BDF8")
+
             with col2:
-                st.metric("Columns", len(df.columns))
+                info_card("Total Columns", len(df.columns), "Columns", "#38BDF8")
+
             with col3:
-                st.metric("Date Range", f"{len(df)} days")
+                info_card("Date Range", f"{len(df)} days", "Days", "#38BDF8")
             
             if st.button("Process Data", type="primary"):
                 required_cols = ['timestamp', 'heart_rate', 'steps', 'sleep_hours']
@@ -619,37 +915,44 @@ elif page == "Upload Data":
                     df['timestamp'] = pd.to_datetime(df['timestamp'])
                     st.session_state.health_data = df
                     st.session_state.data_loaded = True
-                    st.success("✅ Data processed successfully! Go to Dashboard to view insights.")
+                    st.success("Data processed successfully! Go to Dashboard to view insights.")
         
         except Exception as e:
-            st.error(f"❌ Error processing file: {str(e)}")
+            st.error(f"Error processing file: {str(e)}")
     
-    with st.expander("📄 View Sample Data Format"):
+    with st.expander("View Sample Data Format"):
+        st.markdown("<div style='color:#E5E7EB'>", unsafe_allow_html=True)
         sample = pd.DataFrame({
             'timestamp': pd.date_range(end=datetime.now(), periods=5, freq='D'),
             'heart_rate': [72, 75, 68, 85, 70],
             'steps': [8500, 9200, 6800, 10500, 7800],
             'sleep_hours': [7.5, 8.0, 6.5, 7.0, 7.8]
         })
-        st.dataframe(sample, use_container_width=True)
+        st.dataframe(sample, use_container_width=True, hide_index=True)
+        st.markdown("</div>", unsafe_allow_html=True)
         
         csv = sample.to_csv(index=False)
         st.download_button(
-            label="📥 Download Sample CSV",
+            label="Download Sample CSV",
             data=csv,
             file_name="sample_health_data.csv",
             mime="text/csv"
         )
 
+        st.markdown("</div>", unsafe_allow_html=True)
+
 elif page == "Anomaly Analysis":
-    st.title("Anomaly Detection Analysis")
+    st.markdown("""
+    <h2 style="color:#EF4444;text-shadow:0 0 12px rgba(239,68,68,0.6);">
+       Anomaly Detection Analysis
+    </h2>
+    """, unsafe_allow_html=True)
 
     if not st.session_state.data_loaded:
         st.warning("Please load data first.")
     else:
         df = st.session_state.health_data.copy()
         df = detect_anomalies_ml(df)
-        anomalies_df = detect_anomalies_threshold(df)
 
         # ==============================
         # SEVERITY COUNTS
@@ -677,29 +980,26 @@ elif page == "Anomaly Analysis":
         # ==============================
         col1, col2, col3 = st.columns(3)
 
+        def severity_card(title, value, color):
+            st.markdown(f"""
+            <div style="
+                background:#020617;
+                border:6px solid {color};
+                padding:16px;
+                border-radius:10px;
+                box-shadow:0 0 15px rgba(0,0,0,0.4);
+            ">
+                <p style="color:#9CA3AF;margin:0;">{title}</p>
+                <h2 style="margin:0;color:#E5E7EB;">{value}</h2>
+            </div>
+            """, unsafe_allow_html=True)
+
         with col1:
-            st.markdown(f"""
-            <div class="card" style="border-left:6px solid {RED};">
-                <p style="color:#6B7280;margin:0;">High Severity</p>
-                <h2 style="margin:0;color:#0F172A;">{high_severity}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-
+            severity_card("High Severity", high_severity, "#EF4444")
         with col2:
-            st.markdown(f"""
-            <div class="card" style="border-left:6px solid {YELLOW};">
-                <p style="color:#6B7280;margin:0;">Medium Severity</p>
-                <h2 style="margin:0;color:#0F172A;">{medium_severity}</h2>
-            </div>
-            """, unsafe_allow_html=True)
-
+            severity_card("Medium Severity", medium_severity, "#F59E0B")
         with col3:
-            st.markdown(f"""
-            <div class="card" style="border-left:6px solid {GREEN};">
-                <p style="color:#6B7280;margin:0;">Low Severity</p>
-                <h2 style="margin:0;color:#0F172A;">{low_severity}</h2>
-            </div>
-            """, unsafe_allow_html=True)
+            severity_card("Low Severity", low_severity, "#10B981")
 
         st.markdown("---")
 
@@ -716,7 +1016,7 @@ elif page == "Anomaly Analysis":
             y=normal_data["heart_rate"],
             mode="markers",
             name="Normal",
-            marker=dict(color=GREEN, size=9, line=dict(color="#ffffff", width=1))
+            marker=dict(color="#10B981", size=9)
         ))
 
         anomaly_data = df[df["ml_anomaly"] == True]
@@ -725,18 +1025,10 @@ elif page == "Anomaly Analysis":
             y=anomaly_data["heart_rate"],
             mode="markers",
             name="Anomaly",
-            marker=dict(color=RED, size=13, symbol="x", line=dict(color="#ffffff", width=2))
+            marker=dict(color="#EF4444", size=14, symbol="x")
         ))
 
-        fig.update_layout(
-            height=380,
-            plot_bgcolor="#FFFFFF",
-            paper_bgcolor="#FFFFFF",
-            xaxis_title="Date",
-            yaxis_title="Heart Rate (BPM)",
-            font=dict(color="#0F172A"),
-            hovermode="x unified"
-        )
+        fig = apply_fitpulse_plotly_theme(fig, height=400)
 
         st.plotly_chart(fig, use_container_width=True)
 
@@ -747,12 +1039,11 @@ elif page == "Anomaly Analysis":
         # ==============================
         st.subheader("Detailed Anomaly Report")
 
-        ml_anomaly_count = int(df["ml_anomaly"].sum())
-
-        if ml_anomaly_count == 0:
+        if ml_anomalies.empty:
             st.success("No anomalies detected. Health metrics are within normal range.")
         else:
-            st.markdown(f"**Total ML-Detected Anomalies: {ml_anomaly_count}**")
+            st.markdown(f"<p style='color:#E5E7EB;'>Total ML-Detected Anomalies: <strong>{len(ml_anomalies)}</strong></p>",
+                        unsafe_allow_html=True)
 
             for _, row in ml_anomalies.iterrows():
                 hr = row["heart_rate"]
@@ -772,479 +1063,343 @@ elif page == "Anomaly Analysis":
 
                 if steps < 3000:
                     issues.append(f"Low Activity: {steps:.0f} steps")
-                    if severity == "low":
-                        severity = "medium"
+                    severity = "medium" if severity == "low" else severity
 
                 if sleep < 5:
                     issues.append(f"Sleep Deficit: {sleep:.1f} hrs")
-                    if severity == "low":
-                        severity = "medium"
+                    severity = "medium" if severity == "low" else severity
                 elif sleep > 10:
                     issues.append(f"Excessive Sleep: {sleep:.1f} hrs")
-                    if severity == "low":
-                        severity = "medium"
+                    severity = "medium" if severity == "low" else severity
 
-                if not issues:
-                    issues.append("Behavioral pattern deviation detected")
-
-                severity_color = {
-                    "high": RED,
-                    "medium": YELLOW,
-                    "low": GREEN
-                }[severity]
+                color = {"high": "#EF4444", "medium": "#F59E0B", "low": "#10B981"}[severity]
 
                 st.markdown(f"""
-                <div class="card" style="border-left:6px solid {severity_color}; margin-bottom:1rem;">
-                    <strong>Anomaly Detected</strong>
-                    <span style="color:#6B7280;"> — {date.strftime('%Y-%m-%d')}</span>
-                    <p style="margin-top:8px;">{' | '.join(issues)}</p>
-                    <p style="color:#6B7280;font-size:0.9em;">Severity: {severity.upper()}</p>
+                <div style="
+                    background:#020617;
+                    border:6px solid {color};
+                    padding:14px;
+                    border-radius:10px;
+                    margin-bottom:12px;
+                ">
+                    <strong style="color:#E5E7EB;">Anomaly Detected</strong>
+                    <span style="color:#9CA3AF;"> — {date.strftime('%Y-%m-%d')}</span>
+                    <p style="margin-top:6px;color:#E5E7EB;">{' | '.join(issues)}</p>
+                    <p style="color:#9CA3AF;font-size:0.9em;">Severity: {severity.upper()}</p>
                 </div>
                 """, unsafe_allow_html=True)
+
 
 
 elif page == "ML Insights":
-    st.title("Machine Learning Insights")
-    
-    if not st.session_state.data_loaded:
-        st.warning("⚠️ Please load data first!")
-    else:
-        df = st.session_state.health_data
-        df, kmeans = perform_clustering(df)
-        
-        st.markdown("### 🎯 Behavioral Clustering")
-        st.markdown("Your health patterns have been grouped into 3 distinct clusters:")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        for i in range(3):
-            cluster_data = df[df['cluster'] == i]
-            with [col1, col2, col3][i]:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3 style="color: #1a1a2e !important;">Cluster {i+1}</h3>
-                    <p style="color: #2d3436 !important;"><strong style="color: #0984e3 !important;">{len(cluster_data)}</strong> days</p>
-                    <p style="color: #2d3436 !important;">Avg HR: <strong style="color: #e74c3c !important;">{cluster_data['heart_rate'].mean():.0f} BPM</strong></p>
-                    <p style="color: #2d3436 !important;">Avg Steps: <strong style="color: #3B82F6 !important;">{cluster_data['steps'].mean():,.0f}</strong></p>
-                    <p style="color: #2d3436 !important;">Avg Sleep: <strong style="color: #9b59b6 !important;">{cluster_data['sleep_hours'].mean():.1f} hrs</strong></p>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        st.markdown("### 📊 3D Cluster Visualization")
-        
-        fig = px.scatter_3d(
-            df,
-            x='heart_rate',
-            y='steps',
-            z='sleep_hours',
-            color='cluster',
-            color_continuous_scale=[[0, '#e74c3c'], [0.5, '#f39c12'], [1, '#27ae60']],
-            labels={
-                'heart_rate': 'Heart Rate (BPM)',
-                'steps': 'Steps',
-                'sleep_hours': 'Sleep (hours)',
-                'cluster': 'Cluster'
-            }
-        )
-        fig.update_traces(marker=dict(size=10, line=dict(width=2, color='#ffffff')))
-        fig.update_layout(
-            scene=dict(
-                bgcolor='#ffffff',
-                xaxis=dict(
-                    backgroundcolor='#ecf0f1',
-                    gridcolor='#bdc3c7',
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=11)
-                ),
-                yaxis=dict(
-                    backgroundcolor='#ecf0f1',
-                    gridcolor='#bdc3c7',
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=11)
-                ),
-                zaxis=dict(
-                    backgroundcolor='#ecf0f1',
-                    gridcolor='#bdc3c7',
-                    title_font=dict(color='#2c3e50', size=14, family="Arial Black"),
-                    tickfont=dict(color='#2c3e50', size=11)
-                )
-            ),
-            paper_bgcolor='#ffffff',
-            height=550,
-            margin=dict(l=0, r=0, t=40, b=0),
-            font=dict(color='#2c3e50', size=12, family="Arial"),
-            transition=dict(duration=500, easing='cubic-in-out')
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("### 🎲 Pattern Analysis")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### Correlation Heatmap")
-            corr_matrix = df[['heart_rate', 'steps', 'sleep_hours']].corr()
-            fig = px.imshow(
-                corr_matrix,
-                labels=dict(color="Correlation"),
-                color_continuous_scale='RdBu_r',
-                aspect="auto",
-                text_auto='.2f',
-                zmin=-1,
-                zmax=1
-            )
-            fig.update_layout(
-                paper_bgcolor='#ffffff',
-                height=400,
-                margin=dict(l=20, r=20, t=40, b=20),
-                font=dict(color='#2c3e50', size=12, family="Arial"),
-                xaxis=dict(
-                    tickfont=dict(color='#2c3e50', size=12, family="Arial Black"),
-                    side='bottom'
-                ),
-                yaxis=dict(
-                    tickfont=dict(color='#2c3e50', size=12, family="Arial Black")
-                ),
-                transition=dict(duration=500, easing='cubic-in-out')
-            )
-            fig.update_traces(
-                textfont=dict(color='#2c3e50', size=14, family="Arial Black")
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            st.markdown("#### Metric Distributions")
-            fig = go.Figure()
-            fig.add_trace(go.Box(
-                y=df['heart_rate'], 
-                name='Heart Rate', 
-                marker=dict(color='#e74c3c'),
-                line=dict(color='#c0392b', width=2),
-                boxmean='sd'
-            ))
-            fig.add_trace(go.Box(
-                y=df['steps']/100, 
-                name='Steps (÷100)', 
-                marker=dict(color='#3498db'),
-                line=dict(color='#2980b9', width=2),
-                boxmean='sd'
-            ))
-            fig.add_trace(go.Box(
-                y=df['sleep_hours']*10, 
-                name='Sleep (×10)', 
-                marker=dict(color='#9b59b6'),
-                line=dict(color='#8e44ad', width=2),
-                boxmean='sd'
-            ))
-            fig.update_layout(
-                paper_bgcolor='#ffffff',
-                plot_bgcolor='#ffffff',
-                height=400,
-                margin=dict(l=20, r=20, t=40, b=20),
-                font=dict(color='#2c3e50', size=12, family="Arial"),
-                xaxis=dict(
-                    gridcolor='#ecf0f1',
-                    tickfont=dict(color='#2c3e50', size=12, family="Arial Black")
-                ),
-                yaxis=dict(
-                    gridcolor='#ecf0f1',
-                    showgrid=True,
-                    tickfont=dict(color='#2c3e50', size=12),
-                    title='Normalized Values',
-                    title_font=dict(color='#2c3e50', size=13, family="Arial Black")
-                ),
-                transition=dict(duration=500, easing='cubic-in-out')
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-elif page == "Reports":
-    st.title("📑 Health Reports & Export")
+    st.markdown("""
+    <h2 style="color:#FACC15;text-shadow:0 0 12px rgba(250,204,21,0.6);">
+       Machine Learning Insights
+    </h2>
+    """, unsafe_allow_html=True)
 
     if not st.session_state.data_loaded:
         st.warning("⚠️ Please load data first!")
     else:
-        # =========================
-        # DATA PREPARATION
-        # =========================
         df = st.session_state.health_data.copy()
+        df, kmeans = perform_clustering(df)
 
-        # Run ML anomaly detection ONCE
-        df = detect_anomalies_ml(df)
-
-        # Safety check
-        if "ml_anomaly" not in df.columns:
-            df["ml_anomaly"] = False
-
-        ml_anomaly_count = int(df["ml_anomaly"].sum())
-        health_score = calculate_health_score(df)
-        report_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # =========================
-        # REPORT SUMMARY
-        # =========================
-        st.markdown("### 📊 Report Summary")
-
-        st.markdown(
-            f"""
-            <div class="metric-card">
-                <h3 style="color:#111827;">Health Analysis Report</h3>
-                <p><strong>Generated:</strong> {report_date}</p>
-                <p><strong>Analysis Period:</strong> {len(df)} days</p>
-                <p><strong>Health Score:</strong> {health_score}/100</p>
-                <p><strong>Total ML Anomalies:</strong> {ml_anomaly_count}</p>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        # =========================
-        # DETAILED METRICS
-        # =========================
-        st.markdown("### 📉 Detailed Metrics")
+        st.markdown("Behavioral Clustering")
+        st.markdown("<p style='color:#9CA3AF;'>Your health patterns have been grouped into 3 distinct clusters.</p>",
+                    unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns(3)
 
-        # ---- HEART RATE ----
-        with col1:
-            hr = df["heart_rate"].describe()
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <h4>💓 Heart Rate</h4>
-                    <p>Mean: <strong style="color:#EF4444;">{hr['mean']:.1f} BPM</strong></p>
-                    <p>Min: {hr['min']:.1f} BPM</p>
-                    <p>Max: {hr['max']:.1f} BPM</p>
-                    <p>Std Dev: {hr['std']:.1f}</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        def cluster_card(title, days, hr, steps, sleep):
+            st.markdown(f"""
+            <div style="
+                background:#020617;
+                padding:16px;
+                border-radius:12px;
+                border:1px solid rgba(255,255,255,0.08);
+                box-shadow:0 0 15px rgba(0,0,0,0.4);
+            ">
+                <h3 style="color:#FACC15;margin-bottom:8px;">{title}</h3>
+                <p style="color:#9CA3AF;margin:0;">{days} days</p>
+                <p style="color:#E5E7EB;">Avg HR: <strong style="color:#EF4444;">{hr:.0f} BPM</strong></p>
+                <p style="color:#E5E7EB;">Avg Steps: <strong style="color:#38BDF8;">{steps:,.0f}</strong></p>
+                <p style="color:#E5E7EB;">Avg Sleep: <strong style="color:#10B981;">{sleep:.1f} hrs</strong></p>
+            </div>
+            """, unsafe_allow_html=True)
 
-        # ---- STEPS ----
-        with col2:
-            steps = df["steps"].describe()
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <h4>👟 Steps</h4>
-                    <p>Mean: <strong style="color:#3B82F6;">{steps['mean']:.0f}</strong></p>
-                    <p>Min: {steps['min']:.0f}</p>
-                    <p>Max: {steps['max']:.0f}</p>
-                    <p>Std Dev: {steps['std']:.0f}</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-        # ---- SLEEP ----
-        with col3:
-            sleep = df["sleep_hours"].describe()
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <h4>😴 Sleep</h4>
-                    <p>Mean: <strong style="color:#10B981;">{sleep['mean']:.1f} hrs</strong></p>
-                    <p>Min: {sleep['min']:.1f} hrs</p>
-                    <p>Max: {sleep['max']:.1f} hrs</p>
-                    <p>Std Dev: {sleep['std']:.1f}</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        for i, col in enumerate([col1, col2, col3]):
+            cluster_data = df[df["cluster"] == i]
+            with col:
+                cluster_card(
+                    f"Cluster {i+1}",
+                    len(cluster_data),
+                    cluster_data["heart_rate"].mean(),
+                    cluster_data["steps"].mean(),
+                    cluster_data["sleep_hours"].mean()
+                )
 
         st.markdown("---")
 
-        # =========================
-        # EXPORT OPTIONS
-        # =========================
-        st.markdown("### 📥 Export Options")
+        behavior_colors = {
+            "Active & Healthy": "#22C55E",   # green
+            "Moderate": "#FACC15",           # yellow
+            "At Risk": "#EF4444"             # red
+        }
 
-        col1, col2, col3 = st.columns(3)
 
-        # ---- FULL DATA ----
-        with col1:
+        cluster_map = {
+            0: "Active & Healthy",
+            1: "Moderate",
+            2: "At Risk"
+        }
+
+        df["behavior_label"] = df["cluster"].map(cluster_map)
+
+        st.markdown("###  Personalized Health Insights")
+
+        total_days = len(df)
+        healthy_days = (df["behavior_label"] == "🟢 Active & Healthy").sum()
+        moderate_days = (df["behavior_label"] == "🟡 Moderate – Needs Improvement").sum()
+        risk_days = (df["behavior_label"] == "🔴 At Risk").sum()
+
+        if risk_days / total_days > 0.4:
+            insight = (
+                "⚠️ Your recent health patterns show frequent low activity or insufficient sleep. "
+                "Consider improving daily movement and maintaining a consistent sleep schedule."
+            )
+        elif healthy_days / total_days > 0.5:
+            insight = (
+                "✅ Great job! Most of your recent days reflect healthy activity, good sleep, "
+                "and stable heart rate patterns. Keep maintaining this routine."
+            )
+        else:
+            insight = (
+                "ℹ️ Your health behavior is mixed. With slightly improved sleep duration or daily activity, "
+                "you can move toward a more balanced lifestyle."
+            )
+
+        st.success(insight)
+        
+        # ==============================
+        # CLUSTER VISUALIZATION
+        # ==============================
+
+        st.markdown("###  Health Behavior Overview")
+
+        fig = px.scatter(
+            df,
+            x="steps",
+            y="sleep_hours",
+            size="heart_rate",
+            color="behavior_label",
+            template="plotly_dark",
+            color_discrete_map=behavior_colors,
+            category_orders={
+                "behavior_label": ["Active & Healthy", "Moderate", "At Risk"]
+            },
+            labels={
+                "steps": "Daily Activity (Steps)",
+                "sleep_hours": "Sleep Duration (Hours)",
+                "behavior_label": "Health Behavior"
+            }
+        )
+        
+
+        fig.update_traces(
+            marker=dict(
+                opacity=0.75,
+                line=dict(width=1, color="#ffffff")
+            )
+        )
+
+        fig = apply_fitpulse_plotly_theme(fig, height=500)
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown(
+        "<div class='fitpulse-caption'>"
+        "Each point represents a day. Higher steps and sufficient sleep indicate healthier behavior patterns."
+        "</div>",
+        unsafe_allow_html=True
+        )
+
+
+        st.markdown("---")
+
+        
+elif page == "Reports":
+
+    # =========================
+    # PAGE HEADER
+    # =========================
+    st.markdown("""
+    <h2 style="
+        color:#FACC15;
+        text-shadow:0 0 14px rgba(250,204,21,0.7);
+        margin-bottom:10px;">
+        Health Reports
+    </h2>
+    <p style="color:#9CA3AF;margin-top:-5px;">
+        View, analyze, and export your health insights
+    </p>
+    """, unsafe_allow_html=True)
+
+    # =========================
+    # SAFETY CHECK
+    # =========================
+    if (
+        not st.session_state.data_loaded
+        or st.session_state.health_data is None
+    ):
+        st.warning("⚠️ Please upload and process data first!")
+        st.stop()
+
+    # =========================
+    # DATA PREPARATION
+    # =========================
+    df = st.session_state.health_data.copy()
+
+    df = detect_anomalies_ml(df)
+
+    if "ml_anomaly" not in df.columns:
+        df["ml_anomaly"] = False
+
+    ml_anomaly_count = int(df["ml_anomaly"].sum())
+    health_score = calculate_health_score(df)
+    risk_label, risk_color = get_risk_level(health_score, ml_anomaly_count)
+
+    report_date = datetime.now().strftime("%d %b %Y • %I:%M %p")
+
+    # =========================
+    # REPORT OVERVIEW
+    # =========================
+    st.markdown("### Report Overview")
+
+    st.markdown(f"""
+    <div style="
+        background:#020617;
+        border:1px solid #1E293B;
+        border-radius:14px;
+        padding:18px;
+        box-shadow:0 0 20px rgba(250,204,21,0.15);
+    ">
+        <h4 style="color:#FACC15;margin-bottom:8px;">
+            FitPulse Health Report
+        </h4>
+        <p style="color:#E5E7EB;">🕒 Generated: <strong>{report_date}</strong></p>
+        <p style="color:#E5E7EB;">📅 Analysis Period: <strong>{len(df)} records</strong></p>
+        <p style="color:#22D3EE;">💯 Health Score: <strong>{health_score}/100</strong></p>
+        <p style="color:#F87171;">⚠️ ML Anomalies Detected: <strong>{ml_anomaly_count}</strong></p>
+        <p style="color:{risk_color};">🚦 Overall Risk Level: <strong>{risk_label}</strong></p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # =========================
+    # TREND COMPARISON
+    # =========================
+    st.markdown("### Health Trend Comparison")
+
+    mid = max(len(df) // 2, 1)
+    prev_val = df.iloc[:mid]
+    curr_val = df.iloc[mid:]
+
+    col1, col2, col3 = st.columns(3)
+    def trend(curr_val, prev_val):
+        if pd.isna(curr_val) or pd.isna(prev_val):
+            return "➡️ 0"
+        diff = curr_val - prev_val
+        arrow = "⬆️" if diff > 0 else "⬇️" if diff < 0 else "➡️"
+        return f"{arrow} {abs(diff):.1f}"
+
+    with col1:
+        st.markdown(
+            f"""
+            <div class="metric-card">
+                <h4>💓 Heart Rate</h4>
+                <p>{trend(curr_val['heart_rate'].mean(), 
+                          prev_val['heart_rate'].mean())} BPM</p>
+            </div>
+        """, 
+        unsafe_allow_html=True
+        )
+
+    with col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>👟 Steps</h4>
+            <p>{trend(curr_val['steps'].mean(), prev_val['steps'].mean())} steps</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <h4>😴 Sleep</h4>
+            <p>{trend(curr_val['sleep_hours'].mean(), prev_val['sleep_hours'].mean())} hrs</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # =========================
+    # EXPORT OPTIONS
+    # =========================
+    st.markdown("### 📥 Export Reports")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.download_button(
+            " Full Data (CSV)",
+            data=df.to_csv(index=False),
+            file_name="health_data.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    with col2:
+        if ml_anomaly_count > 0:
+            anomalies = df[df["ml_anomaly"]][
+                ["timestamp", "heart_rate", "steps", "sleep_hours"]
+            ]
             st.download_button(
-                "📊 Download Full Data (CSV)",
-                data=df.to_csv(index=False),
-                file_name=f"health_data_{datetime.now().strftime('%Y%m%d')}.csv",
+                " Anomalies Only (CSV)",
+                data=anomalies.to_csv(index=False),
+                file_name="anomalies.csv",
                 mime="text/csv",
                 use_container_width=True
             )
+        else:
+            st.info("No anomalies detected")
 
-        # ---- ANOMALIES ----
-        with col2:
-            if ml_anomaly_count > 0:
-                anomalies = df[df["ml_anomaly"] == True][
-                    ["timestamp", "heart_rate", "steps", "sleep_hours"]
-                ]
+    with col3:
+        pdf_path = generate_pdf_report(
+            df,
+            health_score,
+            ml_anomaly_count,
+            risk_label
+        )
 
-                st.download_button(
-                    "⚠️ Download Anomalies (CSV)",
-                    data=anomalies.to_csv(index=False),
-                    file_name=f"anomalies_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-
-        # ---- SUMMARY REPORT ----
-        with col3:
-            summary_text = f"""
-            FitPulse Health Report
-            Generated: {report_date}
-
-            Analysis Period: {len(df)} days
-            Health Score: {health_score}/100
-            Total ML Anomalies: {ml_anomaly_count}
-
-            Average Heart Rate: {df['heart_rate'].mean():.1f} BPM
-            Average Steps: {df['steps'].mean():.0f}
-            Average Sleep: {df['sleep_hours'].mean():.1f} hrs
-            """
-
+        with open(pdf_path, "rb") as f:
             st.download_button(
-                "📄 Download Summary (TXT)",
-                data=summary_text,
-                file_name=f"summary_{datetime.now().strftime('%Y%m%d')}.txt",
-                mime="text/plain",
+                " FitPulse Report (PDF)",
+                data=f,
+                file_name="FitPulse_Health_Report.pdf",
+                mime="application/pdf",
                 use_container_width=True
             )
 
 
 
 else:  # About page
-    st.title("About FitPulse")
-    
     st.markdown("""
-    ## 💓 FitPulse Health Anomaly Detection System
-    
-    ### 🎯 Project Overview
-    FitPulse is an advanced health monitoring system that uses machine learning and statistical methods 
-    to detect anomalies in fitness tracker data. It helps users identify unusual patterns in their health 
-    metrics and provides actionable insights.
-    
-    ### 📊 Tracked Metrics
-    
-    This streamlined version focuses on three core health indicators:
-    
-    1. **💓 Heart Rate** - Monitoring cardiovascular health
-    2. **👟 Steps** - Daily activity and movement tracking
-    3. **😴 Sleep Hours** - Sleep duration and quality patterns
-    
-    ### 🔧 Technologies Used
-    
-    #### Core Technologies
-    - **Python 3.8+** - Primary programming language
-    - **Streamlit** - Interactive web application framework
-    - **Pandas & NumPy** - Data manipulation and numerical computing
-    - **Plotly** - Interactive data visualization
-    
-    #### Machine Learning
-    - **Scikit-learn** - ML algorithms and preprocessing
-    - **Isolation Forest** - Unsupervised anomaly detection
-    - **KMeans** - Clustering algorithms
-    - **StandardScaler** - Feature normalization
-    
-    ### 🎨 Key Features
-    
-    1. **Multi-Method Anomaly Detection**
-       - Rule-based thresholds for immediate alerts
-       - Machine learning (Isolation Forest) for complex patterns
-       - Clustering to identify behavioral groups
-    
-    2. **Three Core Metrics**
-       - Heart rate monitoring
-       - Daily activity tracking (steps)
-       - Sleep duration analysis
-    
-    3. **Interactive Visualizations**
-       - Real-time charts with Plotly
-       - 3D scatter plots for cluster analysis
-       - Correlation heatmaps
-       - Time series trends
-    
-    4. **Health Score Calculation**
-       - Composite score (0-100) based on three metrics
-       - Normalized against recommended health standards
-       - Trending indicators for improvement tracking
-    
-    5. **Export & Reporting**
-       - CSV export for data analysis
-       - Anomaly reports for medical consultation
-       - Summary reports with key insights
-    
-    ### 📊 Anomaly Detection Methods
-    
-    #### 1. Threshold-Based Detection
-    - Heart Rate: <50 BPM or >100 BPM
-    - Steps: <3000 steps per day
-    - Sleep: <5 hours or >10 hours
-    
-    #### 2. Machine Learning (Isolation Forest)
-    - Detects complex, multi-dimensional anomalies
-    - Unsupervised learning approach
-    - Considers correlations between metrics
-    
-    #### 3. Behavioral Clustering
-    - Groups similar days together
-    - Identifies outlier behavior patterns
-    - Helps understand lifestyle variations
-    
-    ### 📈 Use Cases
-    
-    - **Personal Health Monitoring** - Track your own fitness metrics
-    - **Clinical Research** - Analyze patient data for studies
-    - **Fitness Coaching** - Monitor client progress
-    - **Health Insurance** - Risk assessment and wellness programs
-    - **Wearable Device Analytics** - Process fitness tracker data
-    
-    ### 🚀 Future Enhancements
-    
-    - Integration with real fitness APIs (Fitbit, Apple Health, Google Fit)
-    - Time series forecasting for predictive insights
-    - Email/SMS alerts for critical anomalies
-    - Multi-user support with authentication
-    - Mobile app development
-    - Real-time data streaming
-    - AI-powered health recommendations
-    
-    ### 👨‍💻 Developer Information
-    
-    **Project Type:** Health Analytics & Machine Learning  
-    **Framework:** Streamlit  
-    **License:** MIT  
-    **Status:** Production Ready  
-    
-    ### 📚 Data Privacy & Security
-    
-    - All data processing is done locally
-    - No data is transmitted to external servers
-    - Users have full control over their data
-    - Export and delete data anytime
-    - Compliant with health data privacy standards
-    
-    ### 💡 How to Use
-    
-    1. **Load Data** - Use sample data or upload your own CSV/JSON
-    2. **Explore Dashboard** - View comprehensive health metrics
-    3. **Analyze Anomalies** - Review detected irregularities
-    4. **Check ML Insights** - Understand behavioral patterns
-    5. **Export Reports** - Download data for further analysis
-    
-    ### 🎯 Project Goals Achieved
-    
-    ✅ Data ingestion from multiple formats  
-    ✅ Robust preprocessing and cleaning  
-    ✅ Multi-method anomaly detection  
-    ✅ Machine learning integration  
-    ✅ Interactive visualization dashboard  
-    ✅ Comprehensive reporting system  
-    ✅ User-friendly interface  
-    ✅ Production-ready code  
-    ✅ Simplified to core health metrics  
-    ✅ Perfect color contrast and visibility  
-    ✅ Fully animated and smooth UI/UX  
-    
-    ---
-    
+    <h2 style="color:#FACC15;text-shadow:0 0 12px rgba(250,204,21,0.6);">
+    About my Application
+    </h2>
+    """, unsafe_allow_html=True)
+
+    """
     **Built with ❤️ for Health & Wellness**
-    """)
+    """
